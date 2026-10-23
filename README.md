@@ -38,6 +38,12 @@ Eenmalig handmatig starten kan met `npm start`. `npm run demo` toont de widget m
 
 In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.
 
+## Starten met Windows
+
+Na de eerste keer starten opent de widget zich ook vanzelf als je Windows opstart (op macOS: bij
+inloggen). Handig als je vooral de desktop-app gebruikt, want de Claude-hook gaat alleen af als
+Claude Code start. Uitzetten kan via het systeemvak → “Starten met Windows”.
+
 Wil je niet meer dat hij meestart met Claude: `npm run uninstall-hook`.
 
 ## Waar de cijfers vandaan komen

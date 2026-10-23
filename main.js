@@ -36,7 +36,20 @@ let pollTimer = null;
 // ---------- instellingen ----------
 
 const configFile = () => path.join(app.getPath('userData'), 'widget.json');
-let config = { position: null, alwaysOnTop: true, lastUsage: null };
+let config = { position: null, alwaysOnTop: true, openAtLogin: true, lastUsage: null };
+
+// Linux kent geen login-items in Electron; daar blijft alleen de Claude-hook over.
+const LOGIN_ITEM_SUPPORTED = process.platform === 'win32' || process.platform === 'darwin';
+
+function applyLoginItem() {
+  if (!LOGIN_ITEM_SUPPORTED || DEMO) return;
+  // Gestart via `electron .`: Electron moet de appmap als argument meekrijgen.
+  app.setLoginItemSettings({
+    openAtLogin: config.openAtLogin,
+    path: process.execPath,
+    args: app.isPackaged ? [] : [app.getAppPath()],
+  });
+}
 
 function loadConfig() {
   try {
@@ -231,6 +244,17 @@ function updateTrayMenu() {
           saveConfig();
         },
       },
+      {
+        label: process.platform === 'darwin' ? 'Starten bij inloggen' : 'Starten met Windows',
+        type: 'checkbox',
+        visible: LOGIN_ITEM_SUPPORTED,
+        checked: config.openAtLogin,
+        click: (item) => {
+          config.openAtLogin = item.checked;
+          applyLoginItem();
+          saveConfig();
+        },
+      },
       { type: 'separator' },
       { label: 'Afsluiten', click: () => app.quit() },
     ])
@@ -300,6 +324,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
   loadConfig();
   lastUsage = config.lastUsage; // direct iets tonen; verversen volgt
+  applyLoginItem();
   createTray();
   createWindow();
   globalShortcut.register(SHORTCUT, toggleWidget);
