@@ -200,7 +200,7 @@ function renderProjects(data) {
   $('#proj-count').textContent = `${formatTokens(data.total)} tokens · ${data.projects.length === 1 ? '1 project' : `${data.projects.length} projecten`}`;
   $('#proj-since').textContent = `Sinds ${dateFmt.format(new Date(data.since))}`;
   if (!data.projects.length) {
-    list.append(el('li', 'proj-empty', 'Geen Claude Code-sessies in deze periode.'));
+    list.append(el('li', 'proj-empty', 'Geen Claude Code- of Cowork-sessies in deze periode.'));
     return;
   }
   const max = data.projects[0].cost || data.projects[0].tokens;
@@ -209,7 +209,9 @@ function renderProjects(data) {
     li.classList.toggle('open', openProjects.has(p.path));
     li.title = p.path;
     const top = el('div', 'proj-top');
-    top.append(el('span', 'proj-name', p.name), el('span', 'proj-tokens', money(p.cost)));
+    const name = el('span', 'proj-name', p.name);
+    name.prepend(el('i', `src src-${p.source.toLowerCase()}`, p.source));
+    top.append(name, el('span', 'proj-tokens', money(p.cost)));
     const bar = el('div', 'bar');
     const fill = el('div', 'fill');
     fill.style.width = `${((data.projects[0].cost ? p.cost : p.tokens) / max) * 100}%`;
@@ -278,15 +280,15 @@ function buildTips(u, d) {
   const s = d && d.summary;
   if (!s || !s.messages) {
     out.push(
-      tip('💬', 'lvl-ok', 'Je verbruik zit in chats en Cowork',
-        'Daarvan staan geen details op je computer. Wat helpt: per onderwerp een nieuw gesprek beginnen (elk bericht stuurt het hele gesprek opnieuw mee), vaste bestanden in een project zetten in plaats van ze steeds opnieuw te uploaden, en voor eenvoudige vragen Sonnet of een lagere effort kiezen.')
+      tip('💬', 'lvl-ok', 'Je verbruik zit in chats',
+        'Van gewone chats staan geen details op je computer. Wat helpt: per onderwerp een nieuw gesprek beginnen (elk bericht stuurt het hele gesprek opnieuw mee), vaste bestanden in een project zetten in plaats van ze steeds opnieuw te uploaden, en voor eenvoudige vragen Sonnet of een lagere effort kiezen.')
     );
     return out;
   }
 
   const top = d.projects[0];
   if (top && d.projects.length > 1) {
-    out.push(tip('📁', 'lvl-ok', 'Grootste project', `${top.name} is ${share(top.cost, s.cost)}% van je Claude Code-verbruik deze week (${money(top.cost)} API-waarde).`));
+    out.push(tip('📁', 'lvl-ok', 'Grootste project', `${top.name} (${top.source}) is ${share(top.cost, s.cost)}% van je Code- en Cowork-verbruik deze week (${money(top.cost)} API-waarde).`));
   }
 
   const heavy = s.efforts.filter((e) => ['high', 'xhigh', 'max'].includes(e.name)).reduce((a, e) => a + e.cost, 0);
@@ -314,7 +316,7 @@ function buildTips(u, d) {
     out.push(tip('📝', 'lvl-ok', 'Veel nieuwe context',
       'Een groot deel gaat op aan nieuwe context in de cache schrijven. Laat Claude gericht bestanden lezen in plaats van hele mappen, en houd CLAUDE.md beknopt.'));
   }
-  if (out.length <= 2) out.push(tip('✅', 'lvl-ok', 'Efficiënt bezig', 'Geen duidelijke verspilling gevonden in je Claude Code-sessies van deze week.'));
+  if (out.length <= 2) out.push(tip('✅', 'lvl-ok', 'Efficiënt bezig', 'Geen duidelijke verspilling gevonden in je Code- en Cowork-sessies van deze week.'));
   return out;
 }
 

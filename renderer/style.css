@@ -248,6 +248,17 @@ b { font-weight: 650; }
 .proj.open { background: var(--surface-2); border-color: var(--border); }
 .proj-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .proj-name { min-width: 0; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src {
+  font-style: normal; font-size: 9px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 5px; margin-right: 6px; vertical-align: 1px;
+  background: var(--surface-3); color: var(--text-2);
+}
+.src-cowork { background: color-mix(in srgb, #a78bfa 22%, transparent); color: #c4b5fd; }
+.src-code { background: color-mix(in srgb, #38bdf8 20%, transparent); color: #7dd3fc; }
+@media (prefers-color-scheme: light) {
+  .src-cowork { color: #6d28d9; }
+  .src-code { color: #0369a1; }
+}
 .proj-tokens { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .proj .bar { height: 5px; }
 .proj .fill { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }

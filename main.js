@@ -327,6 +327,7 @@ ipcMain.on('drag-end', () => {
 ipcMain.on('context-menu', () => {
   Menu.buildFromTemplate([
     { label: 'Nu verversen', click: () => refresh(true) },
+    { label: 'Ruwe gegevens bekijken', enabled: !DEMO, click: () => shell.openPath(rawFile()) },
     { label: 'Verbergen', click: hideWidget },
     { type: 'separator' },
     { label: 'Afsluiten', click: () => app.quit() },

@@ -80,3 +80,27 @@ test('weegt kosten per model en telt effort en denktokens', async () => {
   assert.deepStrictEqual(p.efforts.map((e) => e.name), ['medium', 'high']);
   assert.strictEqual(r.summary.models[0].name, 'Sonnet');
 });
+
+test('leest ook Cowork-sessies en groepeert die per werkmap', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-p-'));
+  process.env.CLAUDE_CONFIG_DIR = base;
+  const cowork = path.join(base, 'cowork');
+  process.env.CLAUDE_METER_COWORK_DIRS = cowork;
+  for (const sess of ['sess-a', 'sess-b']) {
+    const dir = path.join(cowork, sess, '.claude', 'projects', 'x');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 's.jsonl'), line({ cwd: '/sessions/werk/Notulen/' }) + reply(sess, 'claude-sonnet-5-5', { output_tokens: 100 }));
+  }
+  const mcp = path.join(cowork, 'mcp-logs-x');
+  fs.mkdirSync(mcp, { recursive: true });
+  fs.writeFileSync(path.join(mcp, 'log.jsonl'), reply('mcp', 'claude-sonnet-5-5', { output_tokens: 999 }));
+  try {
+    const r = await projectUsage(Date.now() - 86400e3);
+    assert.strictEqual(r.projects.length, 1);
+    assert.strictEqual(r.projects[0].source, 'Cowork');
+    assert.strictEqual(r.projects[0].name, 'Notulen');
+    assert.strictEqual(r.projects[0].output, 200);
+  } finally {
+    delete process.env.CLAUDE_METER_COWORK_DIRS;
+  }
+});
