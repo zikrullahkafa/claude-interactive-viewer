@@ -7,7 +7,7 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
-- **Tabblad Mappen:** hoeveel elke map op je computer heeft gebruikt in Claude Code en Cowork (deze week vanaf je
+- **Tabblad Mappen** (alleen zichtbaar als er de afgelopen 30 dagen lokale sessies waren): hoeveel elke map op je computer heeft gebruikt in Claude Code en Cowork (deze week vanaf je
   weekreset, vandaag of 30 dagen),
   gewogen naar geschatte API-waarde (Anthropic-prijzen per model, `lib/pricing.js`), met aandeel,
   sessies, modellen en (na klikken) invoer, uitvoer, cache, denktokens en effort-level. Dit komt uit de sessielogboeken van Claude Code (`~/.claude/projects`) en van Cowork
@@ -36,12 +36,28 @@ npm run setup
 
 `setup` doet twee dingen:
 
-1. **Bureaubladiconen** (Windows): *Claude Meter* opent alleen de widget, *Claude + Meter* opent
+1. **Bureaubladiconen** (Windows; op de Mac zie hieronder): *Claude Meter* opent alleen de widget, *Claude + Meter* opent
    de Claude desktop-app én de widget tegelijk. Sleep *Claude + Meter* eventueel naar je taakbalk
    in plaats van het gewone Claude-icoon. Alleen de iconen opnieuw maken: `npm run shortcut`.
 2. **Claude Code-hook**: `setup` voegt een `SessionStart`-hook toe aan `~/.claude/settings.json` (er wordt eerst een
 `settings.json.bak` gemaakt; andere instellingen en hooks blijven staan). Vanaf dan verschijnt de
 widget zodra je `claude` start of een sessie hervat.
+
+### Op een Mac
+
+Werkt hetzelfde, met het account waarmee Claude Code op die Mac is ingelogd:
+
+```bash
+git clone -b claude/happy-ptolemy-x3ch55 https://github.com/zikrullahkafa/claude-interactive-viewer.git
+cd claude-interactive-viewer
+npm install
+npm run setup
+```
+
+`setup` zet *Claude Meter.app* en *Claude + Meter.app* op je bureaublad (sleep ze gerust naar het
+Dock). De eerste keer vraagt macOS of de widget de sleutelhanger-item “Claude Code-credentials” mag
+lezen; kies *Altijd toestaan*. Het systeemvakicoon staat rechtsboven in de menubalk; de sneltoets is
+⌘⌥U. Op de Mac vernieuwt de widget het token niet zelf: verloopt het, open dan Claude Code even.
 
 Eenmalig handmatig starten kan met `npm start`. `npm run demo` toont de widget met nepgegevens.
 
@@ -98,8 +114,9 @@ npm run demo
 |---|---|
 | `main.js` | venster, systeemvak, sneltoets, periodiek ophalen |
 | `lib/usage.js` | token lezen en vernieuwen, endpoint aanroepen, antwoord normaliseren |
-| `lib/projects.js` | tokens per projectmap uit de Claude Code-logboeken |
+| `lib/projects.js` | verbruik per map uit de Claude Code- en Cowork-logboeken |
+| `lib/pricing.js` | API-prijzen per model, om verbruik te wegen |
 | `renderer/` | de interface (pil en paneel) |
 | `bin/launch.js` | start de widget losgekoppeld; toont hem weer als hij al draait |
 | `scripts/hook.js` | hook in `~/.claude/settings.json` zetten of verwijderen |
-| `scripts/shortcut.js` | bureaubladiconen maken (Windows) |
+| `scripts/shortcut.js` | bureaubladiconen maken (Windows: .lnk, macOS: .app) |

@@ -410,9 +410,21 @@ for (const b of $$('.period')) {
 
 const panelHeight = () => panel.offsetHeight + 16; // + body-padding
 
+// Mappen alleen tonen als er de afgelopen 30 dagen lokale Code- of Cowork-sessies zijn.
+async function updateMappenTab() {
+  let has = true;
+  try {
+    const data = await window.widget.projects(Date.now() - 30 * 86400e3);
+    has = data.projects.length > 0;
+  } catch { /* bij twijfel tonen */ }
+  $('.tab[data-view="projects"]').hidden = !has;
+  if (!has && view === 'projects') setView('limits');
+}
+
 function expand() {
   if (isExpanded) return;
   isExpanded = true;
+  updateMappenTab();
   pill.hidden = true;
   panel.hidden = false;
   window.widget.expand(panelHeight());
@@ -511,6 +523,7 @@ window.widget.onUsage((payload) => {
 window.widget.getState().then((s) => {
   state = s;
   applyTheme(s.theme);
+  updateMappenTab();
   const keys = s.shortcut.replace('CommandOrControl', navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl');
   $('#shortcut').textContent = keys.replaceAll('+', ' ');
   $('#shortcut').title = 'Sneltoets om de widget te tonen of te verbergen';
