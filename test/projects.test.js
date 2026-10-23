@@ -62,3 +62,21 @@ test('modelFamily', () => {
   assert.strictEqual(modelFamily('claude-sonnet-4-5-20250929'), 'Sonnet');
   assert.strictEqual(modelFamily('<synthetic>'), 'Overig');
 });
+
+test('weegt kosten per model en telt effort en denktokens', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-p-'));
+  process.env.CLAUDE_CONFIG_DIR = base;
+  const dir = path.join(base, 'projects', 'p');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, 's.jsonl'),
+    reply(1, 'claude-opus-5-5', { input_tokens: 1e6, output_tokens: 0, output_tokens_details: { thinking_tokens: 0 } }, undefined, { perTurnEffort: 'high' }) +
+      reply(2, 'claude-sonnet-5-5', { output_tokens: 1e6, output_tokens_details: { thinking_tokens: 4e5 }, cache_read_input_tokens: 1e6 }, undefined, { perTurnEffort: 'medium' })
+  );
+  const r = await projectUsage(Date.now() - 86400e3);
+  const p = r.projects[0];
+  assert.strictEqual(Math.round(p.cost * 100) / 100, 4 + 10 + 0.2); // Opus 5.5 invoer, Sonnet 5.5 uitvoer + cache lezen
+  assert.strictEqual(p.thinking, 4e5);
+  assert.deepStrictEqual(p.efforts.map((e) => e.name), ['medium', 'high']);
+  assert.strictEqual(r.summary.models[0].name, 'Sonnet');
+});

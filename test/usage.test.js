@@ -34,7 +34,10 @@ test('normalize zet API-velden om', () => {
 
 test('onbekende limieten worden ook doorgegeven', () => {
   const u = normalize({ ...SAMPLE, seven_day_oauth_apps: { utilization: 12, resets_at: null }, iets_anders: 5 });
-  assert.deepStrictEqual(u.other, [{ key: 'seven_day_oauth_apps', label: 'Seven day oauth apps', percent: 12, resetsAt: null }]);
+  assert.deepStrictEqual(u.other, [{ key: 'seven_day_oauth_apps', label: 'Seven day oauth apps', expires: false, percent: 12, resetsAt: null }]);
+  const c = normalize({ ...SAMPLE, iguana_necktie: { utilization: 6, resets_at: '2026-11-05T07:59:00Z' } });
+  assert.strictEqual(c.other[0].label, 'Cloudsessietegoed');
+  assert.strictEqual(c.other[0].expires, true);
 });
 
 test('parseCredentials accepteert alleen geldige inhoud', () => {

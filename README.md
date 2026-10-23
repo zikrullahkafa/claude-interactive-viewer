@@ -9,10 +9,13 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
 - **Tabblad Projecten:** hoeveel tokens elke projectmap heeft gebruikt (deze week vanaf je
   weekreset, vandaag of 30 dagen),
-  met aandeel in het totaal, aantal sessies, verdeling over modellen en (na klikken) invoer, uitvoer
-  en cache. Dit komt uit de sessielogboeken van Claude Code in `~/.claude/projects`, dus alleen
+  gewogen naar geschatte API-waarde (Anthropic-prijzen per model, `lib/pricing.js`), met aandeel,
+  sessies, modellen en (na klikken) invoer, uitvoer, cache, denktokens en effort-level. Dit komt uit de sessielogboeken van Claude Code in `~/.claude/projects`, dus alleen
   Claude Code-sessies op deze computer; gewone chats in de app of browser en cloudsessies worden
   niet per project bijgehouden (ze tellen wel mee in de limieten).
+- **Tempo:** bovenaan staat of je in dit tempo de weekreset haalt, zoals op claude.ai.
+- **Tabblad Tips:** aanwijzingen om zuiniger te werken, afgeleid uit je limieten en je Claude
+  Code-sessies van deze week (effort-levels, modelkeuze, lengte van sessies, denkwerk).
 - **Slepen** om hem te verplaatsen; de plek wordt onthouden.
 
 ## Installeren

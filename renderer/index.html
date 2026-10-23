@@ -59,12 +59,14 @@
     <div class="tabs" role="tablist">
       <button class="tab active" data-view="limits" role="tab">Limieten</button>
       <button class="tab" data-view="projects" role="tab">Projecten</button>
+      <button class="tab" data-view="tips" role="tab">Tips</button>
     </div>
 
     <div id="error" class="error" hidden></div>
 
     <!-- Limieten -->
     <div class="view" data-view="limits">
+      <div id="pace" class="pace" hidden><i></i><span></span></div>
       <div class="hero">
         <div class="rings">
           <svg viewBox="0 0 132 132" aria-hidden="true">
@@ -103,14 +105,24 @@
         <button class="period" data-period="30">30 dagen</button>
       </div>
       <div class="proj-summary">
-        <div><b id="proj-total">–</b> <span>tokens</span></div>
+        <div><b id="proj-cost">–</b> <span>API-waarde</span></div>
         <span id="proj-count"></span>
       </div>
       <div class="proj-since" id="proj-since"></div>
       <ul id="proj-list" class="proj-list"></ul>
       <p class="note">
-        Alleen Claude Code-sessies op deze computer. Chats in de app of browser en cloudsessies
-        tellen wel mee in je limieten, maar worden niet per project bijgehouden.
+        Alleen Claude Code-sessies op deze computer. Chats, Cowork en cloudsessies tellen wel mee
+        in je limieten, maar Claude houdt ze niet per map bij. API-waarde is een schatting met de
+        Anthropic-prijzen per model; met een abonnement betaal je die niet.
+      </p>
+    </div>
+
+    <!-- Tips -->
+    <div class="view" data-view="tips" hidden>
+      <ul id="tips" class="tips"></ul>
+      <p class="note">
+        Tips op basis van je limieten en je Claude Code-sessies van deze week.
+        Chats en Cowork zitten niet in de logboeken op je computer.
       </p>
     </div>
 

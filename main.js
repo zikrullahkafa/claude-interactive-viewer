@@ -205,7 +205,7 @@ function demoUsage() {
     sevenDayOpus: { percent: 42, resetsAt: new Date(now + 3.6 * 86400e3).toISOString() },
     sevenDaySonnet: null,
     extra: null,
-    other: [],
+    other: [{ key: 'iguana_necktie', label: 'Cloudsessietegoed', expires: true, percent: 6, resetsAt: new Date(now + 13 * 86400e3).toISOString() }],
     plan: 'max',
     fetchedAt: new Date().toISOString(),
   };

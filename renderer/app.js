@@ -64,6 +64,31 @@ function formatTokens(n) {
 }
 
 const pctText = (w) => (w ? `${Math.round(w.percent)}%` : '–');
+const money = (n) =>
+  `$${n.toLocaleString('nl-NL', { minimumFractionDigits: n < 10 ? 2 : 0, maximumFractionDigits: n < 10 ? 2 : 0 })}`;
+const share = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const WEEK_MS = 7 * 86400e3;
+
+// Verwacht weekverbruik bij de reset, op basis van het tempo tot nu toe.
+function weekPace(u) {
+  const w = u && u.sevenDay;
+  if (!w || !w.resetsAt) return null;
+  const end = new Date(w.resetsAt).getTime();
+  const elapsed = Math.min(1, Math.max(0, 1 - (end - Date.now()) / WEEK_MS));
+  const resetDay = new Intl.DateTimeFormat('nl-NL', { weekday: 'long' }).format(new Date(end));
+  if (elapsed < 0.04) return { level: 'lvl-ok', text: `Je week is net begonnen. Reset op ${resetDay}.` };
+  const projected = w.percent / elapsed;
+  if (w.percent >= 100) return { level: 'lvl-crit', text: `Weeklimiet bereikt. Weer beschikbaar op ${resetDay}.` };
+  if (projected <= 85) return { level: 'lvl-ok', projected, text: `Op koers. Je haalt de reset van ${resetDay} ruim.` };
+  if (projected <= 100) return { level: 'lvl-warn', projected, text: `Krap. In dit tempo zit je rond ${Math.round(projected)}% bij de reset van ${resetDay}.` };
+  const rate = w.percent / (elapsed * WEEK_MS); // procent per ms
+  const full = new Date(Date.now() + (100 - w.percent) / rate);
+  return {
+    level: 'lvl-crit',
+    projected,
+    text: `Te snel. In dit tempo is je weeklimiet rond ${dayFmt.format(full)} op, vóór de reset van ${resetDay}.`,
+  };
+}
 
 function setRing(circle, w) {
   const c = 2 * Math.PI * Number(circle.getAttribute('r'));
@@ -90,6 +115,15 @@ function render() {
   $('.pill-alert', pill).hidden = !state.error;
   pill.title = `5 uur ${pctText(u.fiveHour)} · week ${pctText(u.sevenDay)}\nKlik voor details, sleep om te verplaatsen`;
 
+  const pace = weekPace(u);
+  const paceEl = $('#pace');
+  paceEl.hidden = !pace;
+  if (pace) {
+    paceEl.classList.remove('lvl-ok', 'lvl-warn', 'lvl-crit');
+    paceEl.classList.add(pace.level);
+    $('span', paceEl).textContent = pace.text;
+  }
+
   // hero
   $('#center-pct').textContent = pctText(u.fiveHour);
   for (const stat of $$('.stat')) {
@@ -107,6 +141,7 @@ function render() {
     ['Extra gebruik', u.extra],
     ...(u.other || []).map((o) => [o.label, o]),
   ].filter(([, w]) => w);
+  const shortDate = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' });
   $('#rows').replaceChildren(
     ...rows.map(([label, w]) => {
       const row = el('div', 'row');
@@ -115,8 +150,10 @@ function render() {
       const fill = el('div', 'fill');
       fill.style.width = `${w.percent}%`;
       bar.append(fill);
-      row.title = w.resetsAt ? formatReset(w.resetsAt) : '';
-      row.append(el('span', null, label), bar, el('b', null, pctText(w)));
+      row.title = w.resetsAt ? (w.expires ? `Verloopt op ${dateFmt.format(new Date(w.resetsAt))}` : formatReset(w.resetsAt)) : '';
+      const name = el('span', null, label);
+      if (w.expires && w.resetsAt) name.append(el('small', null, `verloopt ${shortDate.format(new Date(w.resetsAt))}`));
+      row.append(name, bar, el('b', null, pctText(w)));
       return row;
     })
   );
@@ -159,36 +196,45 @@ function periodStart() {
 function renderProjects(data) {
   const list = $('#proj-list');
   list.replaceChildren();
-  $('#proj-total').textContent = formatTokens(data.total);
-  $('#proj-count').textContent = data.projects.length === 1 ? '1 project' : `${data.projects.length} projecten`;
+  $('#proj-cost').textContent = money(data.cost || 0);
+  $('#proj-count').textContent = `${formatTokens(data.total)} tokens · ${data.projects.length === 1 ? '1 project' : `${data.projects.length} projecten`}`;
   $('#proj-since').textContent = `Sinds ${dateFmt.format(new Date(data.since))}`;
   if (!data.projects.length) {
     list.append(el('li', 'proj-empty', 'Geen Claude Code-sessies in deze periode.'));
     return;
   }
-  const max = data.projects[0].tokens;
+  const max = data.projects[0].cost || data.projects[0].tokens;
   for (const p of data.projects) {
     const li = el('li', 'proj');
     li.classList.toggle('open', openProjects.has(p.path));
     li.title = p.path;
     const top = el('div', 'proj-top');
-    top.append(el('span', 'proj-name', p.name), el('span', 'proj-tokens', formatTokens(p.tokens)));
+    top.append(el('span', 'proj-name', p.name), el('span', 'proj-tokens', money(p.cost)));
     const bar = el('div', 'bar');
     const fill = el('div', 'fill');
-    fill.style.width = `${(p.tokens / max) * 100}%`;
+    fill.style.width = `${((data.projects[0].cost ? p.cost : p.tokens) / max) * 100}%`;
     bar.append(fill);
-    const share = data.total ? Math.round((p.tokens / data.total) * 100) : 0;
-    const models = p.models.map((m) => `${m.name} ${Math.round((m.tokens / p.tokens) * 100)}%`).join(' · ');
-    const meta = el('div', 'proj-meta', `${share}% · ${p.sessions} ${p.sessions === 1 ? 'sessie' : 'sessies'} · ${models}`);
+    const models = p.models.map((m) => `${m.name} ${share(m.cost, p.cost)}%`).join(' · ');
+    const meta = el(
+      'div',
+      'proj-meta',
+      `${share(p.cost, data.cost)}% · ${formatTokens(p.tokens)} tokens · ${p.sessions} ${p.sessions === 1 ? 'sessie' : 'sessies'} · ${models}`
+    );
     const detail = el('div', 'proj-detail');
     for (const [label, value] of [
       ['Invoer', p.input],
       ['Uitvoer', p.output],
       ['Cache geschreven', p.cacheWrite],
       ['Cache gelezen', p.cacheRead],
+      ['Waarvan denktokens', p.thinking],
       ['Antwoorden', p.messages],
+      ['Context per antwoord', p.messages ? Math.round((p.input + p.cacheRead + p.cacheWrite) / p.messages) : 0],
     ]) {
       detail.append(el('span', null, label), el('b', null, numFmt.format(value)));
+    }
+    const efforts = p.efforts.filter((e) => e.name !== 'onbekend');
+    if (efforts.length) {
+      detail.append(el('span', 'wide', `Effort: ${efforts.map((e) => `${e.name} ${share(e.cost, p.cost)}%`).join(' · ')}`));
     }
     detail.append(el('span', 'path', p.path));
     li.append(top, bar, meta, detail);
@@ -211,6 +257,79 @@ async function loadProjects() {
   if (view === 'projects') projTimer = setTimeout(loadProjects, 2 * 60 * 1000);
 }
 
+// ---------- tips ----------
+
+function tip(icon, level, title, body) {
+  const li = el('li', `tip ${level}`);
+  const text = el('div');
+  text.append(el('div', 'tip-title', title), el('div', 'tip-body', body));
+  li.append(el('div', 'tip-icon', icon), text);
+  return li;
+}
+
+function buildTips(u, d) {
+  const out = [];
+  const pace = weekPace(u);
+  if (pace) out.push(tip('📈', pace.level, 'Weektempo', pace.text));
+  if (u.fiveHour && u.fiveHour.percent >= 80) {
+    out.push(tip('⏳', 'lvl-crit', '5-uurslimiet bijna op', `Grote taken kun je beter na de reset doen (${formatReset(u.fiveHour.resetsAt)}).`));
+  }
+
+  const s = d && d.summary;
+  if (!s || !s.messages) {
+    out.push(
+      tip('💬', 'lvl-ok', 'Je verbruik zit in chats en Cowork',
+        'Daarvan staan geen details op je computer. Wat helpt: per onderwerp een nieuw gesprek beginnen (elk bericht stuurt het hele gesprek opnieuw mee), vaste bestanden in een project zetten in plaats van ze steeds opnieuw te uploaden, en voor eenvoudige vragen Sonnet of een lagere effort kiezen.')
+    );
+    return out;
+  }
+
+  const top = d.projects[0];
+  if (top && d.projects.length > 1) {
+    out.push(tip('📁', 'lvl-ok', 'Grootste project', `${top.name} is ${share(top.cost, s.cost)}% van je Claude Code-verbruik deze week (${money(top.cost)} API-waarde).`));
+  }
+
+  const heavy = s.efforts.filter((e) => ['high', 'xhigh', 'max'].includes(e.name)).reduce((a, e) => a + e.cost, 0);
+  if (share(heavy, s.cost) >= 50) {
+    out.push(tip('🎚️', 'lvl-warn', 'Veel werk op hoge effort',
+      `${share(heavy, s.cost)}% van je verbruik draait op effort high of hoger. Voor routinewerk (kleine aanpassingen, uitleg, opmaak) is medium of low vaak genoeg. Zet effort alleen hoog voor lastige problemen.`));
+  }
+  if (s.output && share(s.thinking, s.output) >= 50) {
+    out.push(tip('🧠', 'lvl-warn', 'Veel denkwerk',
+      `${share(s.thinking, s.output)}% van de uitvoer is denken. Een lagere effort maakt antwoorden korter en goedkoper bij eenvoudige vragen.`));
+  }
+
+  const premium = s.models.filter((m) => ['Opus', 'Fable', 'Mythos'].includes(m.name)).reduce((a, m) => a + m.cost, 0);
+  if (share(premium, s.cost) >= 60) {
+    out.push(tip('🧩', 'lvl-warn', 'Vooral Opus',
+      `${share(premium, s.cost)}% van je verbruik is Opus (of zwaarder). Sonnet 5.5 kost per token de helft van Opus 5.5; gebruik het voor routinetaken en houd Opus voor ontwerp en lastig debugwerk.`));
+  }
+
+  const avgContext = (s.input + s.cacheRead + s.cacheWrite) / s.messages;
+  if (avgContext > 120000) {
+    out.push(tip('📚', 'lvl-warn', 'Lange sessies',
+      `Elk antwoord leest gemiddeld ${formatTokens(avgContext)} tokens context. Begin per taak een nieuwe sessie, of gebruik /clear of /compact als een sessie lang wordt.`));
+  }
+  if (share(s.cacheWrite * 1.25, s.input + s.cacheRead * 0.1 + s.cacheWrite * 1.25) >= 40) {
+    out.push(tip('📝', 'lvl-ok', 'Veel nieuwe context',
+      'Een groot deel gaat op aan nieuwe context in de cache schrijven. Laat Claude gericht bestanden lezen in plaats van hele mappen, en houd CLAUDE.md beknopt.'));
+  }
+  if (out.length <= 2) out.push(tip('✅', 'lvl-ok', 'Efficiënt bezig', 'Geen duidelijke verspilling gevonden in je Claude Code-sessies van deze week.'));
+  return out;
+}
+
+async function loadTips() {
+  let data = null;
+  try {
+    const saved = period;
+    period = 'week';
+    const since = periodStart();
+    period = saved;
+    data = await window.widget.projects(since);
+  } catch { /* zonder logboeken alleen limiet-tips */ }
+  $('#tips').replaceChildren(...buildTips(state.usage || {}, data));
+}
+
 function setView(next) {
   view = next;
   panel.dataset.view = view;
@@ -218,6 +337,7 @@ function setView(next) {
   for (const v of $$('.view')) v.hidden = v.dataset.view !== view;
   if (view === 'projects') loadProjects();
   else clearTimeout(projTimer);
+  if (view === 'tips') loadTips();
 }
 
 for (const t of $$('.tab')) t.addEventListener('click', () => setView(t.dataset.view));
@@ -290,6 +410,7 @@ refreshBtn.addEventListener('click', () => {
   refreshBtn.classList.add('spin');
   window.widget.refresh();
   if (view === 'projects') loadProjects();
+  if (view === 'tips') loadTips();
   setTimeout(() => refreshBtn.classList.remove('spin'), 900);
 });
 $('#btn-collapse').addEventListener('click', collapse);
