@@ -1,0 +1,21 @@
+{
+  "name": "claude-usage-widget",
+  "version": "1.0.0",
+  "description": "Claude Meter: zwevende widget met je Claude-limieten (5 uur en week) en tokenverbruik per project.",
+  "main": "main.js",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "demo": "electron . --demo",
+    "launch": "node bin/launch.js",
+    "install-hook": "node scripts/hook.js install",
+    "uninstall-hook": "node scripts/hook.js uninstall",
+    "test": "node --test \"test/*.test.js\"",
+    "shortcut": "node scripts/shortcut.js",
+    "setup": "node scripts/hook.js install && node scripts/shortcut.js"
+  },
+  "dependencies": {
+    "electron": "^44.9.3"
+  }
+}
