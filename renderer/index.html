@@ -2,33 +2,45 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
-  <title>Claude-gebruik</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'">
+  <title>Claude Meter</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Kleurverlopen voor de ringen, per niveau -->
+  <svg width="0" height="0" class="defs" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-ok" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eeab4"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+      <linearGradient id="g-warn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#ff8a4c"/></linearGradient>
+      <linearGradient id="g-crit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7a85"/><stop offset="1" stop-color="#f43f5e"/></linearGradient>
+      <linearGradient id="g-none" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b6b78"/><stop offset="1" stop-color="#6b6b78"/></linearGradient>
+    </defs>
+  </svg>
+
   <!-- Ingeklapt: zwevende pil -->
-  <div id="pill" class="pill" title="Klik voor details · sleep om te verplaatsen">
-    <div class="gauge" data-key="fiveHour">
-      <svg viewBox="0 0 36 36" aria-hidden="true">
-        <circle class="track" cx="18" cy="18" r="15.5"></circle>
-        <circle class="arc" cx="18" cy="18" r="15.5"></circle>
-      </svg>
-      <span class="gauge-value">–</span>
+  <div id="pill" class="pill">
+    <svg class="mini-rings" viewBox="0 0 40 40" aria-hidden="true">
+      <circle class="track" cx="20" cy="20" r="17"/>
+      <circle class="ring" data-ring="sevenDay" cx="20" cy="20" r="17"/>
+      <circle class="track" cx="20" cy="20" r="10.5"/>
+      <circle class="ring" data-ring="fiveHour" cx="20" cy="20" r="10.5"/>
+    </svg>
+    <div class="pill-stats">
+      <div class="pill-row"><span class="pill-label">5 uur</span><b data-pct="fiveHour">–</b></div>
+      <div class="pill-row"><span class="pill-label">Week</span><b data-pct="sevenDay">–</b></div>
     </div>
-    <div class="pill-labels">
-      <div><span class="dot" data-key="fiveHour"></span>5 uur <b data-pct="fiveHour">–</b></div>
-      <div><span class="dot" data-key="sevenDay"></span>Week <b data-pct="sevenDay">–</b></div>
-    </div>
-    <span class="pill-alert" hidden>!</span>
+    <span class="pill-alert" hidden></span>
   </div>
 
   <!-- Uitgeklapt: paneel -->
   <section id="panel" class="panel" hidden>
     <header class="panel-head">
-      <div class="title">
-        <span class="logo" aria-hidden="true"></span>
-        <span>Claude-gebruik</span>
+      <div class="brand">
+        <img src="logo.png" alt="" class="logo">
+        <div class="brand-text">
+          <span class="brand-name">Claude Meter</span>
+          <span class="brand-sub" id="updated">Nog niet bijgewerkt</span>
+        </div>
         <span class="plan" hidden></span>
       </div>
       <div class="actions">
@@ -38,7 +50,7 @@
         <button id="btn-collapse" class="icon-btn" title="Inklappen (Esc)" aria-label="Inklappen">
           <svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>
         </button>
-        <button id="btn-hide" class="icon-btn" title="Verbergen — terughalen via systeemvak of sneltoets" aria-label="Verbergen">
+        <button id="btn-hide" class="icon-btn" title="Verbergen — terughalen via bureaubladicoon, systeemvak of sneltoets" aria-label="Verbergen">
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </div>
@@ -51,61 +63,59 @@
 
     <div id="error" class="error" hidden></div>
 
+    <!-- Limieten -->
     <div class="view" data-view="limits">
-    <article class="card" data-key="fiveHour">
-      <div class="card-top">
-        <div>
-          <div class="card-label">5-uurslimiet</div>
-          <div class="card-sub">Huidige sessie</div>
+      <div class="hero">
+        <div class="rings">
+          <svg viewBox="0 0 132 132" aria-hidden="true">
+            <circle class="track" cx="66" cy="66" r="58"/>
+            <circle class="ring" data-ring="sevenDay" cx="66" cy="66" r="58"/>
+            <circle class="track" cx="66" cy="66" r="40"/>
+            <circle class="ring" data-ring="fiveHour" cx="66" cy="66" r="40"/>
+          </svg>
+          <div class="rings-center">
+            <b id="center-pct">–</b>
+            <span>5 uur</span>
+          </div>
         </div>
-        <div class="card-pct">–</div>
-      </div>
-      <div class="bar"><div class="fill"></div></div>
-      <div class="card-reset">–</div>
-    </article>
-
-    <article class="card" data-key="sevenDay">
-      <div class="card-top">
-        <div>
-          <div class="card-label">Weeklimiet</div>
-          <div class="card-sub">Alle modellen</div>
+        <div class="stats">
+          <div class="stat" data-key="fiveHour">
+            <div class="stat-label"><i class="swatch"></i>5-uurslimiet</div>
+            <div class="stat-value">–</div>
+            <div class="stat-reset">–</div>
+          </div>
+          <div class="stat" data-key="sevenDay">
+            <div class="stat-label"><i class="swatch"></i>Weeklimiet</div>
+            <div class="stat-value">–</div>
+            <div class="stat-reset">–</div>
+          </div>
         </div>
-        <div class="card-pct">–</div>
       </div>
-      <div class="bar"><div class="fill"></div></div>
-      <div class="card-reset">–</div>
-    </article>
 
-    <div class="mini-list">
-      <div class="mini" data-key="sevenDayOpus" hidden>
-        <span>Week · Opus</span><div class="bar small"><div class="fill"></div></div><b>–</b>
-      </div>
-      <div class="mini" data-key="sevenDaySonnet" hidden>
-        <span>Week · Sonnet</span><div class="bar small"><div class="fill"></div></div><b>–</b>
-      </div>
-      <div class="mini" data-key="extra" hidden>
-        <span>Extra gebruik</span><div class="bar small"><div class="fill"></div></div><b>–</b>
-      </div>
-    </div>
+      <div id="rows" class="rows"></div>
     </div>
 
+    <!-- Projecten -->
     <div class="view" data-view="projects" hidden>
       <div class="periods" role="group" aria-label="Periode">
-        <button class="period" data-days="1">Vandaag</button>
-        <button class="period active" data-days="7">7 dagen</button>
-        <button class="period" data-days="30">30 dagen</button>
+        <button class="period active" data-period="week">Deze week</button>
+        <button class="period" data-period="today">Vandaag</button>
+        <button class="period" data-period="30">30 dagen</button>
       </div>
-      <div class="proj-total"><b id="proj-total">–</b><span id="proj-count"></span></div>
+      <div class="proj-summary">
+        <div><b id="proj-total">–</b> <span>tokens</span></div>
+        <span id="proj-count"></span>
+      </div>
+      <div class="proj-since" id="proj-since"></div>
       <ul id="proj-list" class="proj-list"></ul>
-      <p class="proj-note">
-        Alleen Claude Code-sessies op deze computer (terminal en het Code-tabblad).
-        Gewone chats in de app of browser en cloudsessies tellen wel mee in je limieten, maar
-        worden niet per project bijgehouden.
+      <p class="note">
+        Alleen Claude Code-sessies op deze computer. Chats in de app of browser en cloudsessies
+        tellen wel mee in je limieten, maar worden niet per project bijgehouden.
       </p>
     </div>
 
     <footer class="panel-foot">
-      <span id="updated">Nog niet bijgewerkt</span>
+      <span class="hint">Klik op een project voor details</span>
       <span id="shortcut" class="kbd"></span>
     </footer>
   </section>

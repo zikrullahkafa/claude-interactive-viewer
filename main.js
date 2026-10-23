@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -10,7 +10,7 @@ const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
 const BACKOFF_MS = 10 * 60 * 1000;
 const MIN_MANUAL_MS = 15 * 1000;
-const PILL = { width: 168, height: 60 };
+const PILL = { width: 176, height: 64 };
 const PANEL_WIDTH = 340;
 const MARGIN = 16;
 const SHORTCUT = 'CommandOrControl+Alt+U';
@@ -38,6 +38,7 @@ let pollTimer = null;
 // ---------- instellingen ----------
 
 const configFile = () => path.join(app.getPath('userData'), 'widget.json');
+const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = { position: null, alwaysOnTop: true, lastUsage: null };
 
 // Een eerdere versie zette de widget bij het inloggen aan; dat ruimen we op.
@@ -50,7 +51,7 @@ function removeLegacyLoginItem() {
   });
 }
 
-// Snelkoppeling "Claude + gebruik" geeft --with-claude=<AppID> mee: dan opent de widget ook de Claude-app.
+// Snelkoppeling "Claude + Meter" geeft --with-claude=<AppID> mee: dan opent de widget ook de Claude-app.
 function openClaudeApp(argv) {
   const arg = argv.find((a) => a.startsWith('--with-claude'));
   if (!arg) return;
@@ -204,6 +205,7 @@ function demoUsage() {
     sevenDayOpus: { percent: 42, resetsAt: new Date(now + 3.6 * 86400e3).toISOString() },
     sevenDaySonnet: null,
     extra: null,
+    other: [],
     plan: 'max',
     fetchedAt: new Date().toISOString(),
   };
@@ -220,8 +222,11 @@ async function refresh(manual) {
   clearTimeout(pollTimer);
   let next = POLL_MS;
   try {
-    lastUsage = DEMO ? demoUsage() : await fetchUsage();
+    const { raw, ...usage } = DEMO ? demoUsage() : await fetchUsage();
+    lastUsage = usage;
     lastError = null;
+    // Ruw antwoord bewaren (bevat geen token): zo is te zien welke velden Anthropic meestuurt.
+    if (raw) fs.writeFile(rawFile(), JSON.stringify(raw, null, 2), () => {});
     config.lastUsage = lastUsage;
     saveConfig();
   } catch (err) {
@@ -239,9 +244,9 @@ async function refresh(manual) {
 // ---------- systeemvak ----------
 
 function trayLabel() {
-  if (!lastUsage) return 'Claude-gebruik';
+  if (!lastUsage) return 'Claude Meter';
   const p = (w) => (w ? `${Math.round(w.percent)}%` : '–');
-  return `Claude · 5 uur ${p(lastUsage.fiveHour)} · week ${p(lastUsage.sevenDay)}`;
+  return `Claude Meter · 5 uur ${p(lastUsage.fiveHour)} · week ${p(lastUsage.sevenDay)}`;
 }
 
 function updateTrayMenu() {
@@ -254,6 +259,7 @@ function updateTrayMenu() {
       { type: 'separator' },
       { label: visible ? 'Widget verbergen' : 'Widget tonen', accelerator: SHORTCUT, click: toggleWidget },
       { label: 'Nu verversen', click: () => refresh(true) },
+      { label: 'Ruwe gegevens bekijken', enabled: !DEMO, click: () => shell.openPath(rawFile()) },
       {
         label: 'Altijd bovenop',
         type: 'checkbox',
@@ -287,7 +293,10 @@ function createTray() {
 
 ipcMain.handle('get-state', () => ({ usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT }));
 ipcMain.on('refresh', () => refresh(true));
-ipcMain.handle('projects', (_e, days) => projectUsage([1, 7, 30].includes(days) ? days : 7));
+ipcMain.handle('projects', (_e, sinceMs) => {
+  const min = Date.now() - 62 * 86400e3;
+  return projectUsage(Number.isFinite(sinceMs) && sinceMs > min ? sinceMs : Date.now() - 7 * 86400e3);
+});
 ipcMain.on('expand', (_e, height) => setExpanded(true, height));
 ipcMain.on('collapse', () => setExpanded(false));
 ipcMain.on('resize', (_e, height) => resizePanel(height));

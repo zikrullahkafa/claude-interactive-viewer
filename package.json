@@ -1,7 +1,7 @@
 {
   "name": "claude-usage-widget",
   "version": "1.0.0",
-  "description": "Zwevende widget die je Claude-gebruikslimieten (5-uurs en wekelijks) toont en automatisch start met Claude Code.",
+  "description": "Claude Meter: zwevende widget met je Claude-limieten (5 uur en week) en tokenverbruik per project.",
   "main": "main.js",
   "license": "MIT",
   "private": true,

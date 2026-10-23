@@ -30,7 +30,7 @@ test('telt tokens per projectmap, ontdubbelt en filtert op periode', async () =>
   fs.writeFileSync(path.join(a, 'sess', 'subagents', 'x.jsonl'), reply(4, 'claude-haiku-4-5', { input_tokens: 1, output_tokens: 9 }));
   fs.writeFileSync(path.join(b, 's2.jsonl'), line({ cwd: '/home/z/notities' }) + reply(5, 'claude-sonnet-4-5', { input_tokens: 1, output_tokens: 1 }));
 
-  const r = await projectUsage(7);
+  const r = await projectUsage(Date.now() - 7 * 86400e3);
   assert.strictEqual(r.projects.length, 2);
   const pq = r.projects[0];
   assert.strictEqual(pq.name, path.basename('C:\\werk\\PharmaQuest'));
@@ -40,8 +40,22 @@ test('telt tokens per projectmap, ontdubbelt en filtert op periode', async () =>
   assert.strictEqual(r.projects[1].name, 'notities');
   assert.strictEqual(r.total, pq.tokens + 2);
 
-  const r30 = await projectUsage(60);
+  const r30 = await projectUsage(Date.now() - 60 * 86400e3);
   assert.strictEqual(r30.projects[0].tokens, pq.tokens + 1998);
+});
+
+test('periode begint op het uur nauwkeurig', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-p-'));
+  process.env.CLAUDE_CONFIG_DIR = base;
+  const dir = path.join(base, 'projects', 'p');
+  fs.mkdirSync(dir, { recursive: true });
+  const h = (n) => new Date(Date.now() - n * 3600e3).toISOString();
+  fs.writeFileSync(
+    path.join(dir, 's.jsonl'),
+    reply(1, 'claude-sonnet-4-5', { output_tokens: 1 }, h(5)) + reply(2, 'claude-sonnet-4-5', { output_tokens: 10 }, h(1))
+  );
+  const r = await projectUsage(Date.now() - 3 * 3600e3);
+  assert.strictEqual(r.total, 10);
 });
 
 test('modelFamily', () => {

@@ -1,4 +1,4 @@
-# Claude-gebruik widget
+# Claude Meter
 
 Een kleine zwevende widget die altijd bovenop staat en laat zien hoeveel van je Claude-limieten je
 hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
@@ -7,7 +7,8 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
-- **Tabblad Projecten:** hoeveel tokens elke projectmap heeft gebruikt (vandaag, 7 of 30 dagen),
+- **Tabblad Projecten:** hoeveel tokens elke projectmap heeft gebruikt (deze week vanaf je
+  weekreset, vandaag of 30 dagen),
   met aandeel in het totaal, aantal sessies, verdeling over modellen en (na klikken) invoer, uitvoer
   en cache. Dit komt uit de sessielogboeken van Claude Code in `~/.claude/projects`, dus alleen
   Claude Code-sessies op deze computer; gewone chats in de app of browser en cloudsessies worden
@@ -28,8 +29,8 @@ npm run setup
 
 `setup` doet twee dingen:
 
-1. **Bureaubladiconen** (Windows): *Claude-gebruik* opent alleen de widget, *Claude + gebruik* opent
-   de Claude desktop-app én de widget tegelijk. Sleep *Claude + gebruik* eventueel naar je taakbalk
+1. **Bureaubladiconen** (Windows): *Claude Meter* opent alleen de widget, *Claude + Meter* opent
+   de Claude desktop-app én de widget tegelijk. Sleep *Claude + Meter* eventueel naar je taakbalk
    in plaats van het gewone Claude-icoon. Alleen de iconen opnieuw maken: `npm run shortcut`.
 2. **Claude Code-hook**: `setup` voegt een `SessionStart`-hook toe aan `~/.claude/settings.json` (er wordt eerst een
 `settings.json.bak` gemaakt; andere instellingen en hooks blijven staan). Vanaf dan verschijnt de
@@ -68,6 +69,10 @@ de desktop-app gebruikt. Dit mechanisme is niet officieel gedocumenteerd; misluk
 widget je om in Claude Code `/login` te doen.
 
 De limieten gelden voor je hele account, dus het gebruik via claude.ai en de desktop-app telt mee.
+
+Stuurt Anthropic een limiet mee die de widget nog niet kent, dan verschijnt die automatisch als
+extra regel onder de ringen. Het laatste ruwe antwoord (zonder token) staat in
+`laatste-antwoord.json`; open het via systeemvak → “Ruwe gegevens bekijken”.
 
 Het endpoint is niet officieel gedocumenteerd en kan veranderen. Het wordt elke 3 minuten bevraagd
 (bij een rate limit 10 minuten); met de ververs-knop kan het eerder.

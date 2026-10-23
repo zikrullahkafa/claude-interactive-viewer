@@ -29,6 +29,12 @@ test('normalize zet API-velden om', () => {
   assert.strictEqual(u.sevenDaySonnet, null);
   assert.strictEqual(u.extra, null);
   assert.strictEqual(u.plan, 'max');
+  assert.deepStrictEqual(u.other, []);
+});
+
+test('onbekende limieten worden ook doorgegeven', () => {
+  const u = normalize({ ...SAMPLE, seven_day_oauth_apps: { utilization: 12, resets_at: null }, iets_anders: 5 });
+  assert.deepStrictEqual(u.other, [{ key: 'seven_day_oauth_apps', label: 'Seven day oauth apps', percent: 12, resetsAt: null }]);
 });
 
 test('parseCredentials accepteert alleen geldige inhoud', () => {
