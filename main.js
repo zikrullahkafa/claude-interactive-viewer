@@ -197,7 +197,7 @@ async function refresh(manual) {
   } catch (err) {
     lastError = { code: err.code || 'unknown', message: err.message };
     if (err.code === 'rate-limited') next = BACKOFF_MS;
-    if (err.code === 'expired' || err.code === 'no-credentials') next = 60 * 1000; // wachten tot Claude Code het token ververst
+    if (['expired', 'forbidden', 'no-credentials'].includes(err.code)) next = 60 * 1000; // wachten tot Claude Code het token ververst
   }
   broadcast();
   pollTimer = setTimeout(() => refresh(false), next);

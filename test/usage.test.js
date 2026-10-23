@@ -61,6 +61,7 @@ test('HTTP-fouten worden vertaald', async () => {
   withCreds({ accessToken: 'tok' });
   const respond = (status) => ({ fetchImpl: async () => ({ ok: false, status }) });
   await assert.rejects(fetchUsage(respond(401)), { code: 'expired' });
+  await assert.rejects(fetchUsage(respond(403)), { code: 'forbidden' });
   await assert.rejects(fetchUsage(respond(429)), { code: 'rate-limited' });
   await assert.rejects(fetchUsage(respond(500)), { code: 'http' });
 });
