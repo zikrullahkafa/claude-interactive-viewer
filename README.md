@@ -18,10 +18,15 @@ met je Claude-abonnement (Pro/Max).
 git clone https://github.com/zikrullahkafa/claude-interactive-viewer.git
 cd claude-interactive-viewer
 npm install
-npm run install-hook
+npm run setup
 ```
 
-`install-hook` voegt een `SessionStart`-hook toe aan `~/.claude/settings.json` (er wordt eerst een
+`setup` doet twee dingen:
+
+1. **Bureaubladiconen** (Windows): *Claude-gebruik* opent alleen de widget, *Claude + gebruik* opent
+   de Claude desktop-app én de widget tegelijk. Sleep *Claude + gebruik* eventueel naar je taakbalk
+   in plaats van het gewone Claude-icoon. Alleen de iconen opnieuw maken: `npm run shortcut`.
+2. **Claude Code-hook**: `setup` voegt een `SessionStart`-hook toe aan `~/.claude/settings.json` (er wordt eerst een
 `settings.json.bak` gemaakt; andere instellingen en hooks blijven staan). Vanaf dan verschijnt de
 widget zodra je `claude` start of een sessie hervat.
 
@@ -38,11 +43,8 @@ Eenmalig handmatig starten kan met `npm start`. `npm run demo` toont de widget m
 
 In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.
 
-## Starten met Windows
-
-Na de eerste keer starten opent de widget zich ook vanzelf als je Windows opstart (op macOS: bij
-inloggen). Handig als je vooral de desktop-app gebruikt, want de Claude-hook gaat alleen af als
-Claude Code start. Uitzetten kan via het systeemvak → “Starten met Windows”.
+De widget start nooit vanzelf met Windows; hij draait alleen als jij hem opent (icoon, Claude Code)
+en haalt alleen gegevens op zolang hij zichtbaar is.
 
 Wil je niet meer dat hij meestart met Claude: `npm run uninstall-hook`.
 
@@ -54,9 +56,11 @@ De widget gebruikt hetzelfde endpoint als het `/usage`-commando in Claude Code
 - Windows/Linux: `~/.claude/.credentials.json`
 - macOS: de sleutelhanger (item “Claude Code-credentials”); macOS vraagt de eerste keer om toestemming
 
-Het token gaat alleen naar `api.anthropic.com` en wordt nergens anders opgeslagen. De widget
-**ververst het token niet zelf** (dat zou Claude Code kunnen uitloggen); is het verlopen, dan zie je
-een melding en zodra Claude Code het token vernieuwt, werkt de widget vanzelf weer.
+Het token gaat alleen naar Anthropic en wordt nergens anders opgeslagen. Is het verlopen, dan
+vernieuwt de widget het zelf, net zoals Claude Code dat doet, en schrijft het nieuwe token terug in
+hetzelfde bestand (alle andere velden blijven staan). Daardoor blijft de widget werken als je alleen
+de desktop-app gebruikt. Dit mechanisme is niet officieel gedocumenteerd; mislukt het, dan vraagt de
+widget je om in Claude Code `/login` te doen.
 
 De limieten gelden voor je hele account, dus het gebruik via claude.ai en de desktop-app telt mee.
 

@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
 
 const DEMO = process.argv.includes('--demo');
@@ -36,19 +37,33 @@ let pollTimer = null;
 // ---------- instellingen ----------
 
 const configFile = () => path.join(app.getPath('userData'), 'widget.json');
-let config = { position: null, alwaysOnTop: true, openAtLogin: true, lastUsage: null };
+let config = { position: null, alwaysOnTop: true, lastUsage: null };
 
-// Linux kent geen login-items in Electron; daar blijft alleen de Claude-hook over.
-const LOGIN_ITEM_SUPPORTED = process.platform === 'win32' || process.platform === 'darwin';
-
-function applyLoginItem() {
-  if (!LOGIN_ITEM_SUPPORTED || DEMO) return;
-  // Gestart via `electron .`: Electron moet de appmap als argument meekrijgen.
+// Een eerdere versie zette de widget bij het inloggen aan; dat ruimen we op.
+function removeLegacyLoginItem() {
+  if (DEMO || !(process.platform === 'win32' || process.platform === 'darwin')) return;
   app.setLoginItemSettings({
-    openAtLogin: config.openAtLogin,
+    openAtLogin: false,
     path: process.execPath,
     args: app.isPackaged ? [] : [app.getAppPath()],
   });
+}
+
+// Snelkoppeling "Claude + gebruik" geeft --with-claude=<AppID> mee: dan opent de widget ook de Claude-app.
+function openClaudeApp(argv) {
+  const arg = argv.find((a) => a.startsWith('--with-claude'));
+  if (!arg) return;
+  const appId = arg.split('=')[1];
+  const cmd =
+    process.platform === 'win32' && appId
+      ? ['explorer.exe', [`shell:AppsFolder\\${appId}`]]
+      : process.platform === 'darwin'
+        ? ['open', ['-a', 'Claude']]
+        : null;
+  if (!cmd) return;
+  const child = spawn(cmd[0], cmd[1], { detached: true, stdio: 'ignore' });
+  child.on('error', () => {});
+  child.unref();
 }
 
 function loadConfig() {
@@ -124,7 +139,8 @@ function createWindow() {
 function showWidget() {
   if (!win) createWindow();
   else win.showInactive();
-  refresh(false);
+  if (Date.now() - lastFetch > MIN_MANUAL_MS) refresh(false);
+  else broadcast();
   updateTrayMenu();
 }
 
@@ -210,10 +226,13 @@ async function refresh(manual) {
   } catch (err) {
     lastError = { code: err.code || 'unknown', message: err.message };
     if (err.code === 'rate-limited') next = BACKOFF_MS;
-    if (['expired', 'forbidden', 'no-credentials'].includes(err.code)) next = 60 * 1000; // wachten tot Claude Code het token ververst
+    if (['expired', 'login-needed', 'forbidden', 'no-credentials'].includes(err.code)) next = 60 * 1000; // wachten op opnieuw inloggen
   }
   broadcast();
-  pollTimer = setTimeout(() => refresh(false), next);
+  // Alleen ophalen zolang de widget zichtbaar is; bij weer tonen wordt meteen ververst.
+  pollTimer = setTimeout(() => {
+    if (win && win.isVisible()) refresh(false);
+  }, next);
 }
 
 // ---------- systeemvak ----------
@@ -241,17 +260,6 @@ function updateTrayMenu() {
         click: (item) => {
           config.alwaysOnTop = item.checked;
           if (win) win.setAlwaysOnTop(item.checked, 'floating');
-          saveConfig();
-        },
-      },
-      {
-        label: process.platform === 'darwin' ? 'Starten bij inloggen' : 'Starten met Windows',
-        type: 'checkbox',
-        visible: LOGIN_ITEM_SUPPORTED,
-        checked: config.openAtLogin,
-        click: (item) => {
-          config.openAtLogin = item.checked;
-          applyLoginItem();
           saveConfig();
         },
       },
@@ -316,7 +324,11 @@ ipcMain.on('context-menu', () => {
 
 // ---------- start ----------
 
-app.on('second-instance', showWidget); // opnieuw starten (bijv. door de Claude-hook) = weer tonen
+// Opnieuw starten (bureaubladicoon, Claude-hook) = weer tonen
+app.on('second-instance', (_e, argv) => {
+  showWidget();
+  openClaudeApp(argv);
+});
 app.on('window-all-closed', (e) => e.preventDefault());
 app.on('will-quit', () => globalShortcut.unregisterAll());
 
@@ -324,7 +336,8 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
   loadConfig();
   lastUsage = config.lastUsage; // direct iets tonen; verversen volgt
-  applyLoginItem();
+  removeLegacyLoginItem();
+  openClaudeApp(process.argv);
   createTray();
   createWindow();
   globalShortcut.register(SHORTCUT, toggleWidget);

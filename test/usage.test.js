@@ -52,7 +52,7 @@ test('fetchUsage stuurt token en beta-header mee', async () => {
   assert.strictEqual(u.fiveHour.percent, 34);
 });
 
-test('verlopen token wordt niet verstuurd', async () => {
+test('verlopen token zonder refresh-token wordt niet verstuurd', async () => {
   withCreds({ accessToken: 'tok', expiresAt: Date.now() - 1000 });
   await assert.rejects(fetchUsage({ fetchImpl: () => assert.fail('mag niet') }), { code: 'expired' });
 });
@@ -60,8 +60,55 @@ test('verlopen token wordt niet verstuurd', async () => {
 test('HTTP-fouten worden vertaald', async () => {
   withCreds({ accessToken: 'tok' });
   const respond = (status) => ({ fetchImpl: async () => ({ ok: false, status }) });
-  await assert.rejects(fetchUsage(respond(401)), { code: 'expired' });
+  await assert.rejects(fetchUsage(respond(401)), { code: 'expired' }); // geen refresh-token om mee te vernieuwen
   await assert.rejects(fetchUsage(respond(403)), { code: 'forbidden' });
   await assert.rejects(fetchUsage(respond(429)), { code: 'rate-limited' });
   await assert.rejects(fetchUsage(respond(500)), { code: 'http' });
+});
+
+test('verlopen token wordt vernieuwd en teruggeschreven', async () => {
+  withCreds({ accessToken: 'oud', refreshToken: 'r1', expiresAt: Date.now() - 1000, subscriptionType: 'max', scopes: ['a'] });
+  const calls = [];
+  const u = await fetchUsage({
+    fetchImpl: async (url, opts) => {
+      calls.push(url);
+      if (opts.method === 'POST') {
+        assert.deepStrictEqual(JSON.parse(opts.body).refresh_token, 'r1');
+        return { ok: true, status: 200, json: async () => ({ access_token: 'nieuw', refresh_token: 'r2', expires_in: 28800 }) };
+      }
+      assert.strictEqual(opts.headers.Authorization, 'Bearer nieuw');
+      return { ok: true, status: 200, json: async () => SAMPLE };
+    },
+  });
+  assert.strictEqual(u.fiveHour.percent, 34);
+  const saved = JSON.parse(fs.readFileSync(path.join(process.env.CLAUDE_CONFIG_DIR, '.credentials.json'), 'utf8')).claudeAiOauth;
+  assert.strictEqual(saved.accessToken, 'nieuw');
+  assert.strictEqual(saved.refreshToken, 'r2');
+  assert.strictEqual(saved.subscriptionType, 'max'); // andere velden blijven staan
+  assert.ok(saved.expiresAt > Date.now() + 7 * 3600e3);
+  assert.strictEqual(calls.length, 2);
+});
+
+test('geweigerd refresh-token vraagt om opnieuw inloggen', async () => {
+  withCreds({ accessToken: 'oud', refreshToken: 'r1', expiresAt: Date.now() - 1000 });
+  await assert.rejects(
+    fetchUsage({ fetchImpl: async () => ({ ok: false, status: 400, json: async () => ({}) }) }),
+    { code: 'login-needed' }
+  );
+});
+
+test('401 op geldig token leidt tot één vernieuwing', async () => {
+  withCreds({ accessToken: 'a', refreshToken: 'r1', expiresAt: Date.now() + 3600e3 });
+  let gets = 0;
+  const u = await fetchUsage({
+    fetchImpl: async (url, opts) => {
+      if (opts.method === 'POST') return { ok: true, status: 200, json: async () => ({ access_token: 'b', expires_in: 3600 }) };
+      gets++;
+      return opts.headers.Authorization === 'Bearer b'
+        ? { ok: true, status: 200, json: async () => SAMPLE }
+        : { ok: false, status: 401 };
+    },
+  });
+  assert.strictEqual(gets, 2);
+  assert.strictEqual(u.sevenDay.percent, 61.5);
 });
