@@ -13,6 +13,10 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   sessies, modellen en (na klikken) invoer, uitvoer, cache, denktokens en effort-level. Dit komt uit de sessielogboeken van Claude Code (`~/.claude/projects`) en van Cowork
   (`local-agent-mode-sessions` van de desktop-app). Gewone chats en cloudsessies staan niet op je
   computer en worden daarom niet per project getoond (ze tellen wel mee in de limieten).
+- **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
+  cloudsessietegoed in dollars met vervaldatum.
+- **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies “Zoals Windows” in het
+  systeemvakmenu.
 - **Tempo:** bovenaan staat of je in dit tempo de weekreset haalt, zoals op claude.ai.
 - **Tabblad Tips:** aanwijzingen om zuiniger te werken, afgeleid uit je limieten en je Claude
   Code-sessies van deze week (effort-levels, modelkeuze, lengte van sessies, denkwerk).
@@ -75,7 +79,10 @@ De limieten gelden voor je hele account, dus het gebruik via claude.ai en de des
 
 Stuurt Anthropic een limiet mee die de widget nog niet kent, dan verschijnt die automatisch als
 extra regel onder de ringen. Het laatste ruwe antwoord (zonder token) staat in
-`laatste-antwoord.json`; open het via systeemvak → “Ruwe gegevens bekijken”.
+`laatste-antwoord.json`; open het via de rechtermuisknop → “Ruwe gegevens bekijken”. Wordt
+een veld gevuld dat tot nu toe leeg was (bijvoorbeeld bij een gratis reset), dan toont de widget
+een melding. “Logboeken controleren” laat zien welke sessielogboeken gevonden zijn (alleen
+aantallen en veldnamen, geen inhoud).
 
 Het endpoint is niet officieel gedocumenteerd en kan veranderen. Het wordt elke 3 minuten bevraagd
 (bij een rate limit 10 minuten); met de ververs-knop kan het eerder.

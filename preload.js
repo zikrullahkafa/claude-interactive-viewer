@@ -4,7 +4,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('widget', {
   getState: () => ipcRenderer.invoke('get-state'),
   onUsage: (cb) => ipcRenderer.on('usage', (_e, payload) => cb(payload)),
+  onTheme: (cb) => ipcRenderer.on('theme', (_e, theme) => cb(theme)),
   refresh: () => ipcRenderer.send('refresh'),
+  setTheme: (theme) => ipcRenderer.send('set-theme', theme),
   projects: (days) => ipcRenderer.invoke('projects', days),
   expand: (height) => ipcRenderer.send('expand', height),
   collapse: () => ipcRenderer.send('collapse'),

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
-const { projectUsage } = require('./lib/projects');
+const { projectUsage, describeLogs } = require('./lib/projects');
 
 const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
@@ -39,7 +39,25 @@ let pollTimer = null;
 
 const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
-let config = { position: null, alwaysOnTop: true, lastUsage: null };
+let config = { position: null, alwaysOnTop: true, theme: 'dark', lastUsage: null };
+
+// Thema: 'dark', 'light' of 'system' (volgt Windows). De widget zet het zelf in de CSS.
+function applyTheme(theme) {
+  config.theme = ['dark', 'light', 'system'].includes(theme) ? theme : 'dark';
+  if (win) win.webContents.send('theme', config.theme);
+  saveConfig();
+  updateTrayMenu();
+}
+
+async function openLogCheck() {
+  const file = path.join(app.getPath('userData'), 'logboek-controle.txt');
+  try {
+    fs.writeFileSync(file, await describeLogs());
+    shell.openPath(file);
+  } catch {
+    // niet kritiek
+  }
+}
 
 // Een eerdere versie zette de widget bij het inloggen aan; dat ruimen we op.
 function removeLegacyLoginItem() {
@@ -205,7 +223,9 @@ function demoUsage() {
     sevenDayOpus: { percent: 42, resetsAt: new Date(now + 3.6 * 86400e3).toISOString() },
     sevenDaySonnet: null,
     extra: null,
-    other: [{ key: 'iguana_necktie', label: 'Cloudsessietegoed', expires: true, percent: 6, resetsAt: new Date(now + 13 * 86400e3).toISOString() }],
+    other: [{ key: 'iguana_necktie', label: 'Cloudsessietegoed', expires: true, percent: 8.75, resetsAt: new Date(now + 13 * 86400e3).toISOString(), limitDollars: 100, usedDollars: 8.75, remainingDollars: 91.25 }],
+    products: { since: null, rows: [{ key: 'claude_code', name: 'Claude Code', percent: 0 }, { key: 'chat', name: 'Chats', percent: 10 }, { key: 'cowork', name: 'Cowork', percent: 90 }] },
+    newFields: [],
     plan: 'max',
     fetchedAt: new Date().toISOString(),
   };
@@ -260,6 +280,15 @@ function updateTrayMenu() {
       { label: visible ? 'Widget verbergen' : 'Widget tonen', accelerator: SHORTCUT, click: toggleWidget },
       { label: 'Nu verversen', click: () => refresh(true) },
       { label: 'Ruwe gegevens bekijken', enabled: !DEMO, click: () => shell.openPath(rawFile()) },
+      { label: 'Logboeken controleren', click: openLogCheck },
+      {
+        label: 'Thema',
+        submenu: [
+          ['dark', 'Donker'],
+          ['light', 'Licht'],
+          ['system', 'Zoals Windows'],
+        ].map(([id, label]) => ({ label, type: 'radio', checked: config.theme === id, click: () => applyTheme(id) })),
+      },
       {
         label: 'Altijd bovenop',
         type: 'checkbox',
@@ -291,8 +320,9 @@ function createTray() {
 
 // ---------- IPC ----------
 
-ipcMain.handle('get-state', () => ({ usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT }));
+ipcMain.handle('get-state', () => ({ usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme }));
 ipcMain.on('refresh', () => refresh(true));
+ipcMain.on('set-theme', (_e, theme) => applyTheme(theme));
 ipcMain.handle('projects', (_e, sinceMs) => {
   const min = Date.now() - 62 * 86400e3;
   return projectUsage(Number.isFinite(sinceMs) && sinceMs > min ? sinceMs : Date.now() - 7 * 86400e3);
@@ -328,6 +358,7 @@ ipcMain.on('context-menu', () => {
   Menu.buildFromTemplate([
     { label: 'Nu verversen', click: () => refresh(true) },
     { label: 'Ruwe gegevens bekijken', enabled: !DEMO, click: () => shell.openPath(rawFile()) },
+    { label: 'Logboeken controleren', click: openLogCheck },
     { label: 'Verbergen', click: hideWidget },
     { type: 'separator' },
     { label: 'Afsluiten', click: () => app.quit() },

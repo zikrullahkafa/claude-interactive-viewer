@@ -121,3 +121,28 @@ test('401 op geldig token leidt tot één vernieuwing', async () => {
   assert.strictEqual(gets, 2);
   assert.strictEqual(u.sevenDay.percent, 61.5);
 });
+
+test('leest echte velden: tegoed in dollars, verdeling per product, nieuwe velden', () => {
+  const raw = {
+    ...SAMPLE,
+    iguana_necktie: { utilization: 8.75, resets_at: '2026-11-05T07:59:00+00:00', limit_dollars: 100, used_dollars: 8.75, remaining_dollars: 91.25 },
+    amber_cistern: null,
+    pace: null,
+    limits: [{ kind: 'session' }],
+    seven_day_breakdown: {
+      window_started_at: '2026-10-18T08:00:00Z',
+      rows: [
+        { key: 'claude_code', display_name: 'Claude Code', percent: 0 },
+        { key: 'chat', display_name: 'Chats', percent: 10 },
+        { key: 'cowork', display_name: 'Cowork', percent: 90 },
+      ],
+    },
+  };
+  const u = normalize(raw);
+  assert.strictEqual(u.other[0].remainingDollars, 91.25);
+  assert.strictEqual(u.other[0].limitDollars, 100);
+  assert.deepStrictEqual(u.products.rows.map((r) => [r.name, r.percent]), [['Claude Code', 0], ['Chats', 10], ['Cowork', 90]]);
+  assert.deepStrictEqual(u.newFields, []);
+  const later = normalize({ ...raw, amber_cistern_offer: { expires_at: '2026-11-01' }, brand_new: { x: 1 } });
+  assert.deepStrictEqual(later.newFields, [{ key: 'amber_cistern_offer', isNew: false }, { key: 'brand_new', isNew: true }]);
+});

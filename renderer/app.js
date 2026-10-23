@@ -152,11 +152,51 @@ function render() {
       bar.append(fill);
       row.title = w.resetsAt ? (w.expires ? `Verloopt op ${dateFmt.format(new Date(w.resetsAt))}` : formatReset(w.resetsAt)) : '';
       const name = el('span', null, label);
-      if (w.expires && w.resetsAt) name.append(el('small', null, `verloopt ${shortDate.format(new Date(w.resetsAt))}`));
+      const parts = [];
+      if (w.remainingDollars != null) parts.push(`${money(w.remainingDollars)} van ${money(w.limitDollars)} over`);
+      if (w.expires && w.resetsAt) parts.push(`verloopt ${shortDate.format(new Date(w.resetsAt))}`);
       row.append(name, bar, el('b', null, pctText(w)));
+      if (parts.length) row.append(el('small', null, parts.join(' · ')));
       return row;
     })
   );
+
+  // verdeling per product
+  const products = u.products && u.products.rows.filter((r) => r.percent > 0);
+  const prodEl = $('#products');
+  prodEl.hidden = !(products && products.length);
+  if (products && products.length) {
+    const colors = { cowork: '#a78bfa', chat: '#ff8a65', claude_code: '#38bdf8', other: '#8a8896' };
+    $('.stack', prodEl).replaceChildren(
+      ...products.map((r) => {
+        const seg = el('i');
+        seg.style.width = `${r.percent}%`;
+        seg.style.background = colors[r.key] || '#8a8896';
+        seg.title = `${r.name}: ${r.percent}%`;
+        return seg;
+      })
+    );
+    $('.legend', prodEl).replaceChildren(
+      ...products.map((r) => {
+        const item = el('span');
+        const dot = el('i');
+        dot.style.background = colors[r.key] || '#8a8896';
+        item.append(dot, `${r.name} `, el('b', null, `${r.percent}%`));
+        return item;
+      })
+    );
+  }
+
+  // iets nieuws van Anthropic, bijvoorbeeld een gratis reset
+  const news = $('#news');
+  const fresh = u.newFields || [];
+  news.hidden = !fresh.length;
+  if (fresh.length) {
+    news.replaceChildren(
+      el('b', null, 'Er staat iets nieuws in je account. '),
+      `Mogelijk een gratis reset of aanbieding; kijk op claude.ai bij Gebruik. (${fresh.map((f) => f.key).join(', ')})`
+    );
+  }
 
   const plan = $('.plan', panel);
   plan.hidden = !u.plan;
@@ -416,6 +456,24 @@ refreshBtn.addEventListener('click', () => {
   setTimeout(() => refreshBtn.classList.remove('spin'), 900);
 });
 $('#btn-collapse').addEventListener('click', collapse);
+// ---------- thema ----------
+
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+let themeSetting = 'dark';
+
+function applyTheme(setting) {
+  themeSetting = setting || 'dark';
+  const resolved = themeSetting === 'system' ? (systemDark.matches ? 'dark' : 'light') : themeSetting;
+  document.documentElement.dataset.theme = resolved;
+}
+
+systemDark.addEventListener('change', () => applyTheme(themeSetting));
+window.widget.onTheme(applyTheme);
+$('#btn-theme').addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  window.widget.setTheme(next);
+});
 $('#btn-hide').addEventListener('click', () => {
   collapse();
   window.widget.hide();
@@ -437,6 +495,7 @@ window.widget.onUsage((payload) => {
 
 window.widget.getState().then((s) => {
   state = s;
+  applyTheme(s.theme);
   const keys = s.shortcut.replace('CommandOrControl', navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl');
   $('#shortcut').textContent = keys.replaceAll('+', ' ');
   $('#shortcut').title = 'Sneltoets om de widget te tonen of te verbergen';
