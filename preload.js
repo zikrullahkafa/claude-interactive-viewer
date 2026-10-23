@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('widget', {
   getState: () => ipcRenderer.invoke('get-state'),
   onUsage: (cb) => ipcRenderer.on('usage', (_e, payload) => cb(payload)),
   refresh: () => ipcRenderer.send('refresh'),
+  projects: (days) => ipcRenderer.invoke('projects', days),
   expand: (height) => ipcRenderer.send('expand', height),
   collapse: () => ipcRenderer.send('collapse'),
   resize: (height) => ipcRenderer.send('resize', height),

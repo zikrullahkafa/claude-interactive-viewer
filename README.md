@@ -7,6 +7,11 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
+- **Tabblad Projecten:** hoeveel tokens elke projectmap heeft gebruikt (vandaag, 7 of 30 dagen),
+  met aandeel in het totaal, aantal sessies, verdeling over modellen en (na klikken) invoer, uitvoer
+  en cache. Dit komt uit de sessielogboeken van Claude Code in `~/.claude/projects`, dus alleen
+  Claude Code-sessies op deze computer; gewone chats in de app of browser en cloudsessies worden
+  niet per project bijgehouden (ze tellen wel mee in de limieten).
 - **Slepen** om hem te verplaatsen; de plek wordt onthouden.
 
 ## Installeren
@@ -77,7 +82,9 @@ npm run demo
 | Bestand | Rol |
 |---|---|
 | `main.js` | venster, systeemvak, sneltoets, periodiek ophalen |
-| `lib/usage.js` | token lezen, endpoint aanroepen, antwoord normaliseren |
+| `lib/usage.js` | token lezen en vernieuwen, endpoint aanroepen, antwoord normaliseren |
+| `lib/projects.js` | tokens per projectmap uit de Claude Code-logboeken |
 | `renderer/` | de interface (pil en paneel) |
 | `bin/launch.js` | start de widget losgekoppeld; toont hem weer als hij al draait |
 | `scripts/hook.js` | hook in `~/.claude/settings.json` zetten of verwijderen |
+| `scripts/shortcut.js` | bureaubladiconen maken (Windows) |

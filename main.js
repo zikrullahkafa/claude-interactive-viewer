@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
+const { projectUsage } = require('./lib/projects');
 
 const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
@@ -286,6 +287,7 @@ function createTray() {
 
 ipcMain.handle('get-state', () => ({ usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT }));
 ipcMain.on('refresh', () => refresh(true));
+ipcMain.handle('projects', (_e, days) => projectUsage([1, 7, 30].includes(days) ? days : 7));
 ipcMain.on('expand', (_e, height) => setExpanded(true, height));
 ipcMain.on('collapse', () => setExpanded(false));
 ipcMain.on('resize', (_e, height) => resizePanel(height));

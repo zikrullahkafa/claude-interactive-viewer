@@ -154,6 +154,7 @@ const refreshBtn = $('#btn-refresh');
 refreshBtn.addEventListener('click', () => {
   refreshBtn.classList.add('spin');
   window.widget.refresh();
+  if (view === 'projects') loadProjects();
   setTimeout(() => refreshBtn.classList.remove('spin'), 900);
 });
 $('#btn-collapse').addEventListener('click', collapse);
@@ -168,6 +169,99 @@ document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   window.widget.contextMenu();
 });
+
+// ---------- projecten ----------
+
+let view = 'limits';
+let days = 7;
+let projTimer = null;
+const openProjects = new Set();
+const numFmt = new Intl.NumberFormat('nl-NL');
+
+function formatTokens(n) {
+  if (n >= 1e9) return `${(n / 1e9).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mld`;
+  if (n >= 1e6) return `${(n / 1e6).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln`;
+  if (n >= 1e3) return `${(n / 1e3).toLocaleString('nl-NL', { maximumFractionDigits: 0 })}k`;
+  return numFmt.format(n);
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function renderProjects(data) {
+  const list = $('#proj-list');
+  list.replaceChildren();
+  $('#proj-total').textContent = `${formatTokens(data.total)} tokens`;
+  $('#proj-count').textContent = data.projects.length === 1 ? '1 project' : `${data.projects.length} projecten`;
+  if (!data.projects.length) {
+    list.append(el('li', 'proj-empty', 'Geen Claude Code-sessies in deze periode.'));
+    return;
+  }
+  const max = data.projects[0].tokens;
+  for (const p of data.projects) {
+    const li = el('li', 'proj');
+    li.classList.toggle('open', openProjects.has(p.path));
+    li.title = p.path;
+    const top = el('div', 'proj-top');
+    top.append(el('span', 'proj-name', p.name), el('span', 'proj-tokens', formatTokens(p.tokens)));
+    const bar = el('div', 'bar');
+    const fill = el('div', 'fill');
+    fill.style.width = `${(p.tokens / max) * 100}%`;
+    bar.append(fill);
+    const share = data.total ? Math.round((p.tokens / data.total) * 100) : 0;
+    const models = p.models.map((m) => `${m.name} ${Math.round((m.tokens / p.tokens) * 100)}%`).join(' · ');
+    const meta = el('div', 'proj-meta', `${share}% van totaal · ${p.sessions} ${p.sessions === 1 ? 'sessie' : 'sessies'} · ${models}`);
+    const detail = el('div', 'proj-detail');
+    for (const [label, value] of [
+      ['Invoer', p.input],
+      ['Uitvoer', p.output],
+      ['Cache geschreven', p.cacheWrite],
+      ['Cache gelezen', p.cacheRead],
+      ['Antwoorden', p.messages],
+    ]) {
+      detail.append(el('span', null, label), el('b', null, numFmt.format(value)));
+    }
+    detail.append(el('span', 'path', p.path));
+    li.append(top, bar, meta, detail);
+    li.addEventListener('click', () => {
+      if (openProjects.has(p.path)) openProjects.delete(p.path);
+      else openProjects.add(p.path);
+      li.classList.toggle('open');
+    });
+    list.append(li);
+  }
+}
+
+async function loadProjects() {
+  clearTimeout(projTimer);
+  try {
+    renderProjects(await window.widget.projects(days));
+  } catch {
+    $('#proj-list').replaceChildren(el('li', 'proj-empty', 'Kon de sessielogboeken niet lezen.'));
+  }
+  if (view === 'projects') projTimer = setTimeout(loadProjects, 2 * 60 * 1000);
+}
+
+function setView(next) {
+  view = next;
+  for (const t of $$('.tab')) t.classList.toggle('active', t.dataset.view === view);
+  for (const v of $$('.view')) v.hidden = v.dataset.view !== view;
+  if (view === 'projects') loadProjects();
+  else clearTimeout(projTimer);
+}
+
+for (const t of $$('.tab')) t.addEventListener('click', () => setView(t.dataset.view));
+for (const b of $$('.period')) {
+  b.addEventListener('click', () => {
+    days = Number(b.dataset.days);
+    for (const x of $$('.period')) x.classList.toggle('active', x === b);
+    loadProjects();
+  });
+}
 
 // ---------- start ----------
 

@@ -44,8 +44,14 @@
       </div>
     </header>
 
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-view="limits" role="tab">Limieten</button>
+      <button class="tab" data-view="projects" role="tab">Projecten</button>
+    </div>
+
     <div id="error" class="error" hidden></div>
 
+    <div class="view" data-view="limits">
     <article class="card" data-key="fiveHour">
       <div class="card-top">
         <div>
@@ -80,6 +86,22 @@
       <div class="mini" data-key="extra" hidden>
         <span>Extra gebruik</span><div class="bar small"><div class="fill"></div></div><b>–</b>
       </div>
+    </div>
+    </div>
+
+    <div class="view" data-view="projects" hidden>
+      <div class="periods" role="group" aria-label="Periode">
+        <button class="period" data-days="1">Vandaag</button>
+        <button class="period active" data-days="7">7 dagen</button>
+        <button class="period" data-days="30">30 dagen</button>
+      </div>
+      <div class="proj-total"><b id="proj-total">–</b><span id="proj-count"></span></div>
+      <ul id="proj-list" class="proj-list"></ul>
+      <p class="proj-note">
+        Alleen Claude Code-sessies op deze computer (terminal en het Code-tabblad).
+        Gewone chats in de app of browser en cloudsessies tellen wel mee in je limieten, maar
+        worden niet per project bijgehouden.
+      </p>
     </div>
 
     <footer class="panel-foot">
