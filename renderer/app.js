@@ -239,6 +239,21 @@ function renderProjects(data) {
   $('#proj-cost').textContent = money(data.cost || 0);
   $('#proj-count').textContent = `${formatTokens(data.total)} tokens · ${data.projects.length === 1 ? '1 map' : `${data.projects.length} mappen`}`;
   $('#proj-since').textContent = `Sinds ${dateFmt.format(new Date(data.since))}`;
+
+  // Welk deel van je weekverbruik staat niet op deze computer? (alleen voor "Deze week")
+  const coverage = $('#coverage');
+  const products = state.usage && state.usage.products ? state.usage.products.rows : [];
+  const hasCowork = data.projects.some((p) => p.source === 'Cowork');
+  const missing = products.filter((r) => r.percent > 0 && (r.key === 'chat' || r.key === 'other' || (r.key === 'cowork' && !hasCowork)));
+  coverage.hidden = period !== 'week' || !missing.length;
+  if (!coverage.hidden) {
+    coverage.replaceChildren(
+      el('b', null, `${missing.reduce((a, r) => a + r.percent, 0)}% van je weekverbruik staat niet op deze computer`),
+      ` (${missing.map((r) => `${r.name} ${r.percent}%`).join(', ')}). ` +
+        (missing.some((r) => r.key === 'cowork') ? 'Cowork-sessies die in de cloud draaien laten hier geen logboek achter. ' : '') +
+        'De verdeling per product staat bij Limieten.'
+    );
+  }
   if (!data.projects.length) {
     list.append(el('li', 'proj-empty', 'Geen Claude Code- of Cowork-sessies in deze periode.'));
     return;
