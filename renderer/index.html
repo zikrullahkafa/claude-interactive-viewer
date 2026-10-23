@@ -61,7 +61,7 @@
 
     <div class="tabs" role="tablist">
       <button class="tab active" data-view="limits" role="tab">Limieten</button>
-      <button class="tab" data-view="projects" role="tab">Projecten</button>
+      <button class="tab" data-view="projects" role="tab">Mappen</button>
       <button class="tab" data-view="tips" role="tab">Tips</button>
     </div>
 
@@ -107,7 +107,7 @@
       <div id="rows" class="rows"></div>
     </div>
 
-    <!-- Projecten -->
+    <!-- Mappen (projectmappen op deze computer) -->
     <div class="view" data-view="projects" hidden>
       <div class="periods" role="group" aria-label="Periode">
         <button class="period active" data-period="week">Deze week</button>
@@ -121,8 +121,9 @@
       <div class="proj-since" id="proj-since"></div>
       <ul id="proj-list" class="proj-list"></ul>
       <p class="note">
-        Claude Code- en Cowork-sessies op deze computer. Gewone chats en cloudsessies tellen wel
-        mee in je limieten, maar staan niet op je computer. API-waarde is een schatting met de
+        Mappen op je computer waarin Claude Code of Cowork werkte. Gesprekken in de Claude-chat
+        (ook in chatprojecten) worden alleen bij Anthropic bewaard en staan hier dus niet; ze tellen
+        wel mee in je limieten en in de verdeling per product. API-waarde is een schatting met de
         Anthropic-prijzen per model; met een abonnement betaal je die niet.
       </p>
     </div>
@@ -137,7 +138,7 @@
     </div>
 
     <footer class="panel-foot">
-      <span class="hint">Klik op een project voor details</span>
+      <span class="hint">Klik op een map voor details</span>
       <span id="shortcut" class="kbd"></span>
     </footer>
   </section>

@@ -7,11 +7,11 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
-- **Tabblad Projecten:** hoeveel tokens elke projectmap heeft gebruikt (deze week vanaf je
+- **Tabblad Mappen:** hoeveel elke map op je computer heeft gebruikt in Claude Code en Cowork (deze week vanaf je
   weekreset, vandaag of 30 dagen),
   gewogen naar geschatte API-waarde (Anthropic-prijzen per model, `lib/pricing.js`), met aandeel,
   sessies, modellen en (na klikken) invoer, uitvoer, cache, denktokens en effort-level. Dit komt uit de sessielogboeken van Claude Code (`~/.claude/projects`) en van Cowork
-  (`local-agent-mode-sessions` van de desktop-app). Gewone chats en cloudsessies staan niet op je
+  (`local-agent-mode-sessions` van de desktop-app, ook de Windows Store-locatie onder `Packages`), per map die je in Cowork koos. Gewone chats en cloudsessies staan niet op je
   computer en worden daarom niet per project getoond (ze tellen wel mee in de limieten).
 - **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
   cloudsessietegoed in dollars met vervaldatum.

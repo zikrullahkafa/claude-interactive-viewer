@@ -104,3 +104,31 @@ test('leest ook Cowork-sessies en groepeert die per werkmap', async () => {
     delete process.env.CLAUDE_METER_COWORK_DIRS;
   }
 });
+
+test('Cowork: groepeert per gekozen map, slaat audit.jsonl over', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-p-'));
+  process.env.CLAUDE_CONFIG_DIR = base;
+  const cowork = path.join(base, 'lams');
+  process.env.CLAUDE_METER_COWORK_DIRS = cowork;
+  const mk = (id, meta, n) => {
+    const sess = path.join(cowork, 'acc', 'org', `local_${id}`);
+    const dir = path.join(sess, '.claude', 'projects', 'x-outputs');
+    fs.mkdirSync(dir, { recursive: true });
+    if (meta) fs.writeFileSync(`${sess}.json`, JSON.stringify(meta));
+    fs.writeFileSync(path.join(dir, 't.jsonl'), line({ cwd: '/sessions/abc/outputs' }) + reply(`${id}${n}`, 'claude-sonnet-5-5', { output_tokens: n }));
+    fs.writeFileSync(path.join(sess, 'audit.jsonl'), reply(`audit${id}`, 'claude-sonnet-5-5', { output_tokens: 5000 }));
+  };
+  mk('a', { title: 'Notulen maken', userSelectedFolders: ['C:\\Users\\Dopex\\Documents\\Musab'] }, 100);
+  mk('b', { title: 'Nog een keer', userSelectedFolders: ['C:\\Users\\Dopex\\Documents\\Musab'] }, 50);
+  mk('c', { title: 'Losse vraag' }, 10);
+  try {
+    const r = await projectUsage(Date.now() - 86400e3);
+    const names = r.projects.map((p) => [p.name, p.output, p.source]);
+    assert.deepStrictEqual(names.sort(), [
+      ['Losse vraag', 10, 'Cowork'],
+      [path.basename('C:\\Users\\Dopex\\Documents\\Musab'), 150, 'Cowork'],
+    ].sort());
+  } finally {
+    delete process.env.CLAUDE_METER_COWORK_DIRS;
+  }
+});

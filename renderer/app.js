@@ -237,7 +237,7 @@ function renderProjects(data) {
   const list = $('#proj-list');
   list.replaceChildren();
   $('#proj-cost').textContent = money(data.cost || 0);
-  $('#proj-count').textContent = `${formatTokens(data.total)} tokens · ${data.projects.length === 1 ? '1 project' : `${data.projects.length} projecten`}`;
+  $('#proj-count').textContent = `${formatTokens(data.total)} tokens · ${data.projects.length === 1 ? '1 map' : `${data.projects.length} mappen`}`;
   $('#proj-since').textContent = `Sinds ${dateFmt.format(new Date(data.since))}`;
   if (!data.projects.length) {
     list.append(el('li', 'proj-empty', 'Geen Claude Code- of Cowork-sessies in deze periode.'));
@@ -328,7 +328,7 @@ function buildTips(u, d) {
 
   const top = d.projects[0];
   if (top && d.projects.length > 1) {
-    out.push(tip('📁', 'lvl-ok', 'Grootste project', `${top.name} (${top.source}) is ${share(top.cost, s.cost)}% van je Code- en Cowork-verbruik deze week (${money(top.cost)} API-waarde).`));
+    out.push(tip('📁', 'lvl-ok', 'Grootste map', `${top.name} (${top.source}) is ${share(top.cost, s.cost)}% van je Code- en Cowork-verbruik deze week (${money(top.cost)} API-waarde).`));
   }
 
   const heavy = s.efforts.filter((e) => ['high', 'xhigh', 'max'].includes(e.name)).reduce((a, e) => a + e.cost, 0);
