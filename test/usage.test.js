@@ -146,3 +146,51 @@ test('leest echte velden: tegoed in dollars, verdeling per product, nieuwe velde
   const later = normalize({ ...raw, amber_cistern_offer: { expires_at: '2026-11-01' }, brand_new: { x: 1 } });
   assert.deepStrictEqual(later.newFields, [{ key: 'amber_cistern_offer', isNew: false }, { key: 'brand_new', isNew: true }]);
 });
+
+test('macOS: token uit de sleutelhanger wordt vernieuwd en teruggeschreven', async (t) => {
+  // Nagebootste `security` die het sleutelhanger-item in een bestand bewaart.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-kc-'));
+  const store = path.join(dir, 'item.json');
+  const log = path.join(dir, 'acct.txt');
+  fs.writeFileSync(store, JSON.stringify({ claudeAiOauth: { accessToken: 'oud', refreshToken: 'r1', expiresAt: Date.now() - 1000, subscriptionType: 'pro' } }));
+  fs.writeFileSync(
+    path.join(dir, 'security'),
+    `#!/usr/bin/env node
+const fs = require('fs');
+const a = process.argv.slice(2);
+if (a[0] === '-i') {
+  let input = '';
+  process.stdin.on('data', (d) => (input += d)).on('end', () => {
+    const m = /add-generic-password -U -a "([^"]*)" -s "Claude Code-credentials" -X ([0-9a-f]+)/.exec(input);
+    if (!m) { process.stderr.write('error'); process.exit(1); }
+    fs.writeFileSync(${JSON.stringify(log)}, m[1]);
+    fs.writeFileSync(${JSON.stringify(store)}, Buffer.from(m[2], 'hex').toString('utf8'));
+  });
+} else if (a.includes('-w')) process.stdout.write(fs.readFileSync(${JSON.stringify(store)}, 'utf8'));
+else process.stdout.write('keychain: "x"\\n    "acct"<blob>="dopex"\\n');
+`,
+    { mode: 0o755 }
+  );
+  const oldPath = process.env.PATH;
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  process.env.PATH = `${dir}${path.delimiter}${oldPath}`;
+  process.env.CLAUDE_CONFIG_DIR = dir; // geen .credentials.json: valt terug op de sleutelhanger
+  delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  Object.defineProperty(process, 'platform', { value: 'darwin' });
+  t.after(() => {
+    process.env.PATH = oldPath;
+    Object.defineProperty(process, 'platform', platform);
+  });
+  const u = await fetchUsage({
+    fetchImpl: async (url, opts) =>
+      opts.method === 'POST'
+        ? { ok: true, status: 200, json: async () => ({ access_token: 'nieuw', refresh_token: 'r2', expires_in: 3600 }) }
+        : { ok: true, status: 200, json: async () => SAMPLE },
+  });
+  assert.strictEqual(u.fiveHour.percent, 34);
+  const saved = JSON.parse(fs.readFileSync(store, 'utf8')).claudeAiOauth;
+  assert.strictEqual(saved.accessToken, 'nieuw');
+  assert.strictEqual(saved.refreshToken, 'r2');
+  assert.strictEqual(saved.subscriptionType, 'pro');
+  assert.strictEqual(fs.readFileSync(log, 'utf8'), 'dopex'); // hetzelfde item bijgewerkt
+});

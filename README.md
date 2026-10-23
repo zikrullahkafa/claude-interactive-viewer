@@ -48,7 +48,7 @@ widget zodra je `claude` start of een sessie hervat.
 Werkt hetzelfde, met het account waarmee Claude Code op die Mac is ingelogd:
 
 ```bash
-git clone -b claude/happy-ptolemy-x3ch55 https://github.com/zikrullahkafa/claude-interactive-viewer.git
+git clone https://github.com/zikrullahkafa/claude-interactive-viewer.git
 cd claude-interactive-viewer
 npm install
 npm run setup
@@ -57,7 +57,8 @@ npm run setup
 `setup` zet *Claude Meter.app* en *Claude + Meter.app* op je bureaublad (sleep ze gerust naar het
 Dock). De eerste keer vraagt macOS of de widget de sleutelhanger-item “Claude Code-credentials” mag
 lezen; kies *Altijd toestaan*. Het systeemvakicoon staat rechtsboven in de menubalk; de sneltoets is
-⌘⌥U. Op de Mac vernieuwt de widget het token niet zelf: verloopt het, open dan Claude Code even.
+⌘⌥U. Net als op Windows vernieuwt de widget een verlopen token zelf en schrijft het terug in
+hetzelfde sleutelhanger-item.
 
 Eenmalig handmatig starten kan met `npm start`. `npm run demo` toont de widget met nepgegevens.
 
@@ -84,6 +85,7 @@ De widget gebruikt hetzelfde endpoint als het `/usage`-commando in Claude Code
 
 - Windows/Linux: `~/.claude/.credentials.json`
 - macOS: de sleutelhanger (item “Claude Code-credentials”); macOS vraagt de eerste keer om toestemming
+  om te lezen en, bij het eerste vernieuwen, om te schrijven
 
 Het token gaat alleen naar Anthropic en wordt nergens anders opgeslagen. Is het verlopen, dan
 vernieuwt de widget het zelf, net zoals Claude Code dat doet, en schrijft het nieuwe token terug in
