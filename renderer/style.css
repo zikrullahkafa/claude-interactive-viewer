@@ -233,6 +233,17 @@ b { font-weight: 650; }
 .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; }
 .fill { height: 100%; width: 0; border-radius: inherit; background: var(--c, var(--muted)); transition: width 0.8s cubic-bezier(.2,.8,.2,1); }
 
+/* ---------- nieuwe versie ---------- */
+
+.update {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--text); padding: 8px 11px; border-radius: 12px;
+  background: color-mix(in srgb, var(--s1) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--s1) 40%, transparent);
+}
+.update:disabled { cursor: default; opacity: 0.8; }
+.update b { font-weight: 650; }
+
 /* ---------- verloop ---------- */
 
 .vperiod {

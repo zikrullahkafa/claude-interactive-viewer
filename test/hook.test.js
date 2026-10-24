@@ -19,3 +19,11 @@ test('uninstall verwijdert alleen onze hook', () => {
   assert.deepStrictEqual(s.hooks.SessionStart, [other]);
   assert.deepStrictEqual(removeOurs(install({})), {});
 });
+
+test('eigen commando en status', () => {
+  const { isInstalled } = require('../scripts/hook');
+  const s = install({}, '"C:/Program Files/Claude Meter/Claude Meter.exe" --launch --claude-usage-widget');
+  assert.strictEqual(isInstalled(s), true);
+  assert.match(s.hooks.SessionStart[0].hooks[0].command, /--launch/);
+  assert.strictEqual(isInstalled(removeOurs(s)), false);
+});

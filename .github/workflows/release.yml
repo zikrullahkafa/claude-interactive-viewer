@@ -1,0 +1,33 @@
+# Bouwt de Windows-installatie en de Mac-schijfkopie en zet ze in een GitHub Release.
+# Start: een tag v* pushen, of handmatig via Actions -> Release -> Run workflow.
+# De versie komt uit package.json; de geïnstalleerde apps zien de nieuwe release vanzelf.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Bouwen en publiceren
+        run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false

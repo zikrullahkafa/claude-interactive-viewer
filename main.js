@@ -6,6 +6,8 @@ const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
 const { projectUsage, describeLogs } = require('./lib/projects');
 const { createHistory } = require('./lib/history');
+const { createUpdater } = require('./lib/updates');
+const hook = require('./scripts/hook');
 
 const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
@@ -18,6 +20,19 @@ const SHORTCUT = 'CommandOrControl+Alt+U';
 
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals');
+}
+
+// Zelfde gegevensmap voor de geïnstalleerde app en de ontwikkelversie (instellingen, metingen).
+app.setPath('userData', path.join(app.getPath('appData'), 'claude-usage-widget'));
+
+// Vanuit de Claude Code-hook: start mezelf los van de hook en stop meteen, zodat de hook niet wacht.
+if (process.argv.includes('--launch')) {
+  const child = spawn(process.execPath, process.argv.slice(1).filter((a) => a !== '--launch'), {
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
+  process.exit(0);
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -40,7 +55,42 @@ let pollTimer = null;
 
 const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
-let config = { position: null, alwaysOnTop: true, theme: 'dark', lastUsage: null };
+let config = { position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null, lastUsage: null };
+let updater = null;
+let updateState = null;
+
+// Commando voor de Claude Code-hook: de geïnstalleerde app, of in de ontwikkelversie bin/launch.js.
+function hookCommand() {
+  if (!app.isPackaged) return undefined; // standaardcommando van scripts/hook.js
+  return `"${process.execPath.replace(/\\/g, '/')}" --launch --${hook.MARKER}`;
+}
+
+function setHookEnabled(enable) {
+  try {
+    hook.setHook(enable, hookCommand());
+  } catch {
+    // settings.json onleesbaar: niets veranderen
+  }
+  updateTrayMenu();
+}
+
+// Windows: de AppID van de Claude-app opzoeken (eenmalig, daarna bewaard).
+function findClaudeAppId() {
+  if (config.claudeAppId || process.platform !== 'win32') return Promise.resolve(config.claudeAppId);
+  return new Promise((resolve) => {
+    const ps = spawn('powershell.exe', ['-NoProfile', '-Command', "(Get-StartApps | Where-Object { $_.Name -eq 'Claude' } | Select-Object -First 1).AppID"], {
+      windowsHide: true,
+    });
+    let out = '';
+    ps.stdout.on('data', (d) => (out += d));
+    ps.on('error', () => resolve(null));
+    ps.on('exit', () => {
+      config.claudeAppId = out.trim() || null;
+      saveConfig();
+      resolve(config.claudeAppId);
+    });
+  });
+}
 
 // Thema: 'dark', 'light' of 'system' (volgt Windows). De widget zet het zelf in de CSS.
 function applyTheme(theme) {
@@ -71,10 +121,13 @@ function removeLegacyLoginItem() {
 }
 
 // Snelkoppeling "Claude + Meter" geeft --with-claude=<AppID> mee: dan opent de widget ook de Claude-app.
-function openClaudeApp(argv) {
+// Claude-app meeopenen: via de oude snelkoppeling (--with-claude) of de instelling, maar niet
+// als Claude Code ons start (dan draait Claude al).
+async function openClaudeApp(argv) {
   const arg = argv.find((a) => a.startsWith('--with-claude'));
-  if (!arg) return;
-  const appId = arg.split('=')[1];
+  const fromHook = argv.includes(`--${hook.MARKER}`);
+  if (!arg && (!config.openClaude || fromHook)) return;
+  const appId = (arg && arg.split('=')[1]) || (await findClaudeAppId());
   const cmd =
     process.platform === 'win32' && appId
       ? ['explorer.exe', [`shell:AppsFolder\\${appId}`]]
@@ -298,8 +351,37 @@ function updateTrayMenu() {
       { type: 'separator' },
       { label: visible ? 'Widget verbergen' : 'Widget tonen', accelerator: SHORTCUT, click: toggleWidget },
       { label: 'Nu verversen', click: () => refresh(true) },
+      ...(updateState
+        ? [{
+          label: updateState.status === 'ready' ? `Herstarten en bijwerken naar ${updateState.version}`
+            : updateState.status === 'downloading' ? `Versie ${updateState.version} wordt gedownload…`
+              : `Versie ${updateState.version} downloaden`,
+          enabled: updateState.status !== 'downloading',
+          click: () => updater && updater.install(),
+        }]
+        : []),
+      { type: 'separator' },
+      {
+        label: 'Meestarten met Claude Code',
+        type: 'checkbox',
+        visible: hook.claudeCodeInstalled(),
+        checked: hook.hookStatus(),
+        click: (item) => setHookEnabled(item.checked),
+      },
+      {
+        label: 'Claude-app meeopenen',
+        type: 'checkbox',
+        visible: process.platform === 'win32' || process.platform === 'darwin',
+        checked: config.openClaude,
+        click: (item) => {
+          config.openClaude = item.checked;
+          saveConfig();
+        },
+      },
+      { type: 'separator' },
       { label: 'Ruwe gegevens bekijken', enabled: !DEMO, click: () => shell.openPath(rawFile()) },
       { label: 'Logboeken controleren', click: openLogCheck },
+      { label: `Versie ${app.getVersion()}`, enabled: false },
       {
         label: 'Thema',
         submenu: [
@@ -339,7 +421,11 @@ function createTray() {
 
 // ---------- IPC ----------
 
-ipcMain.handle('get-state', () => ({ usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme }));
+ipcMain.handle('get-state', () => ({
+  usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme,
+  update: updateState, version: app.getVersion(),
+}));
+ipcMain.on('install-update', () => updater && updater.install());
 ipcMain.on('refresh', () => refresh(true));
 ipcMain.on('set-theme', (_e, theme) => applyTheme(theme));
 ipcMain.handle('projects', (_e, sinceMs, bucket) => {
@@ -403,6 +489,17 @@ app.whenReady().then(() => {
   loadConfig();
   lastUsage = config.lastUsage; // direct iets tonen; verversen volgt
   removeLegacyLoginItem();
+  // Geïnstalleerde app, eerste keer: meteen meestarten met Claude Code (uit te zetten in het menu).
+  if (app.isPackaged && !config.hookOffered && hook.claudeCodeInstalled()) {
+    config.hookOffered = true;
+    saveConfig();
+    setHookEnabled(true);
+  }
+  updater = createUpdater((s) => {
+    updateState = s;
+    updateTrayMenu();
+    if (win) win.webContents.send('update', s);
+  });
   openClaudeApp(process.argv);
   createTray();
   createWindow();

@@ -38,6 +38,20 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
 - Geen achtergrondproces of autostart met het besturingssysteem: de gebruiker wil dat niet.
   Starten gaat via het bureaubladicoon, "Claude + Meter" (opent ook de app) of de Claude Code-hook.
 
+## Afspraken met de gebruiker
+
+- Geef stappen voor **Windows en Mac altijd apart** (PowerShell vs. Terminal, eigen paden:
+  Windows `C:\Users\Dopex\claude-interactive-viewer`, Mac `~/claude-interactive-viewer`).
+- Alles op `main` zetten via een PR (de gebruiker heeft daar toestemming voor gegeven).
+
+## Uitbrengen
+
+`package.json` → `version` verhogen, op `main` zetten, dan workflow *Release* (handmatig of tag `v*`).
+electron-builder bouwt NSIS (Windows, werkt zichzelf bij via electron-updater) en een universele
+dmg (Mac, ad-hoc ondertekend; kan zichzelf niet vervangen, de app meldt nieuwe versies en opent de
+releasepagina). Eerste start van de geïnstalleerde app zet de Claude Code-hook aan
+(`<exe> --launch --claude-usage-widget`); `--launch` start de app los en stopt meteen.
+
 ## Testen
 
 `npm test` (node:test, geen extra pakketten). `npm run demo` toont de widget met nepgegevens.

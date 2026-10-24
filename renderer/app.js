@@ -785,9 +785,27 @@ window.widget.onUsage((payload) => {
   render();
 });
 
+// ---------- nieuwe versie ----------
+
+function renderUpdate(u) {
+  const btn = $('#update');
+  btn.hidden = !u;
+  if (!u) return;
+  btn.disabled = u.status === 'downloading';
+  btn.replaceChildren(
+    el('b', null, `Nieuwe versie ${u.version}`),
+    u.status === 'ready' ? ' · klik om te herstarten en bij te werken'
+      : u.status === 'downloading' ? ' · wordt gedownload…'
+        : ' · klik om te downloaden'
+  );
+}
+$('#update').addEventListener('click', () => window.widget.installUpdate());
+window.widget.onUpdate(renderUpdate);
+
 window.widget.getState().then((s) => {
   state = s;
   applyTheme(s.theme);
+  renderUpdate(s.update);
   updateMappenTab();
   const keys = s.shortcut.replace('CommandOrControl', navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl');
   $('#shortcut').textContent = keys.replaceAll('+', ' ');

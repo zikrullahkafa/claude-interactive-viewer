@@ -147,7 +147,8 @@ test('leest echte velden: tegoed in dollars, verdeling per product, nieuwe velde
   assert.deepStrictEqual(later.newFields, [{ key: 'amber_cistern_offer', isNew: false }, { key: 'brand_new', isNew: true }]);
 });
 
-test('macOS: token uit de sleutelhanger wordt vernieuwd en teruggeschreven', async (t) => {
+// De nagebootste `security` is een Node-script met shebang; dat draait niet op Windows.
+test('macOS: token uit de sleutelhanger wordt vernieuwd en teruggeschreven', { skip: process.platform === 'win32' }, async (t) => {
   // Nagebootste `security` die het sleutelhanger-item in een bestand bewaart.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-kc-'));
   const store = path.join(dir, 'item.json');

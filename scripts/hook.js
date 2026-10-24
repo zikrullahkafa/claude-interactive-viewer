@@ -36,16 +36,40 @@ function removeOurs(settings) {
   return settings;
 }
 
-function install(settings) {
+const isInstalled = (settings) =>
+  ((settings.hooks && settings.hooks.SessionStart) || []).some((g) => (g.hooks || []).some(isOurs));
+
+function install(settings, cmd = command) {
   removeOurs(settings);
   settings.hooks = settings.hooks || {};
   settings.hooks.SessionStart = settings.hooks.SessionStart || [];
   settings.hooks.SessionStart.push({
     matcher: 'startup|resume',
-    hooks: [{ type: 'command', command, timeout: 10 }],
+    hooks: [{ type: 'command', command: cmd, timeout: 10 }],
   });
   return settings;
 }
+
+// Voor de app zelf: staat de hook aan?
+function hookStatus() {
+  try {
+    return isInstalled(read(settingsPath()));
+  } catch {
+    return false;
+  }
+}
+
+// Voor de app zelf: hook aan- of uitzetten, met reservekopie. Gooit bij een onleesbaar bestand.
+function setHook(enable, cmd = command) {
+  const file = settingsPath();
+  const settings = read(file);
+  if (fs.existsSync(file)) fs.copyFileSync(file, `${file}.bak`);
+  const next = enable ? install(settings, cmd) : removeOurs(settings);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(next, null, 2) + '\n');
+}
+
+const claudeCodeInstalled = () => fs.existsSync(path.dirname(settingsPath()));
 
 function main() {
   const action = process.argv[2];
@@ -73,4 +97,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { install, removeOurs, MARKER };
+module.exports = { install, removeOurs, isInstalled, hookStatus, setHook, claudeCodeInstalled, MARKER };

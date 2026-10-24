@@ -29,43 +29,50 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 
 ## Installeren
 
-Je hebt [Node.js](https://nodejs.org) 18 of nieuwer nodig, en je moet in Claude Code ingelogd zijn
-met je Claude-abonnement (Pro/Max).
+Download de nieuwste versie bij
+[Releases](https://github.com/zikrullahkafa/claude-interactive-viewer/releases/latest).
+Je moet in Claude Code ingelogd zijn met je Claude-abonnement (één keer per computer: `claude` in
+een terminal en inloggen).
+
+### Windows
+
+1. Download `Claude-Meter-Setup-<versie>.exe` en open het.
+2. Windows SmartScreen kan waarschuwen omdat de app niet betaald ondertekend is: klik op
+   *Meer informatie* → *Toch uitvoeren*.
+3. De app installeert zich, zet *Claude Meter* op je bureaublad en in het startmenu, en start.
+
+Nieuwe versies downloadt de app zelf; bovenin het paneel verschijnt dan *klik om te herstarten en
+bij te werken*.
+
+### Mac
+
+1. Download `Claude-Meter-<versie>.dmg`, open het en sleep *Claude Meter* naar *Apps*.
+2. Open de app. macOS meldt dat het de ontwikkelaar niet kan controleren: kies *Gereed*, ga naar
+   *Systeeminstellingen* → *Privacy en beveiliging* en klik onderaan op *Open toch*.
+3. Kies bij de vraag om de sleutelhanger-item “Claude Code-credentials” te gebruiken *Altijd toestaan*.
+
+De Mac-app kan zichzelf niet vervangen (daarvoor is een betaald Apple-certificaat nodig): bij een
+nieuwe versie verschijnt bovenin het paneel *klik om te downloaden*; installeer dan de nieuwe `.dmg`.
+
+### Instellingen in het menu
+
+Rechtsklik op de widget of klik op het icoon in het systeemvak (Windows) of de menubalk (Mac):
+
+- **Meestarten met Claude Code**: de widget verschijnt als je `claude` start (staat na installatie aan).
+- **Claude-app meeopenen**: als je Claude Meter opent, gaat de Claude desktop-app ook open.
+
+### Vanaf de broncode (voor ontwikkelen)
 
 ```bash
 git clone https://github.com/zikrullahkafa/claude-interactive-viewer.git
 cd claude-interactive-viewer
 npm install
-npm run setup
+npm start            # of: npm run setup voor hook + bureaubladiconen van de ontwikkelversie
 ```
 
-`setup` doet twee dingen:
-
-1. **Bureaubladiconen** (Windows; op de Mac zie hieronder): *Claude Meter* opent alleen de widget, *Claude + Meter* opent
-   de Claude desktop-app én de widget tegelijk. Sleep *Claude + Meter* eventueel naar je taakbalk
-   in plaats van het gewone Claude-icoon. Alleen de iconen opnieuw maken: `npm run shortcut`.
-2. **Claude Code-hook**: `setup` voegt een `SessionStart`-hook toe aan `~/.claude/settings.json` (er wordt eerst een
-`settings.json.bak` gemaakt; andere instellingen en hooks blijven staan). Vanaf dan verschijnt de
-widget zodra je `claude` start of een sessie hervat.
-
-### Op een Mac
-
-Werkt hetzelfde, met het account waarmee Claude Code op die Mac is ingelogd:
-
-```bash
-git clone https://github.com/zikrullahkafa/claude-interactive-viewer.git
-cd claude-interactive-viewer
-npm install
-npm run setup
-```
-
-`setup` zet *Claude Meter.app* en *Claude + Meter.app* op je bureaublad (sleep ze gerust naar het
-Dock). De eerste keer vraagt macOS of de widget de sleutelhanger-item “Claude Code-credentials” mag
-lezen; kies *Altijd toestaan*. Het systeemvakicoon staat rechtsboven in de menubalk; de sneltoets is
-⌘⌥U. Net als op Windows vernieuwt de widget een verlopen token zelf en schrijft het terug in
-hetzelfde sleutelhanger-item.
-
-Eenmalig handmatig starten kan met `npm start`. `npm run demo` toont de widget met nepgegevens.
+Een nieuwe release maken: verhoog `version` in `package.json`, zet het op `main` en start op GitHub
+*Actions* → *Release* → *Run workflow* (of push een tag `v<versie>`). De workflow bouwt de Windows-
+en Mac-versie en publiceert ze.
 
 ## Wegklikken en weer aanzetten
 
