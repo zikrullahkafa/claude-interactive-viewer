@@ -100,7 +100,7 @@ en Mac-versie en publiceert ze.
 
 | Wat | Hoe |
 |---|---|
-| Inklappen | ˄-knop in het paneel, of `Esc` |
+| Inklappen | klik op de bovenbalk van het paneel (bij „Claude Meter”), of `Esc` |
 | Verbergen | ×-knop in het paneel, of rechtermuisknop → Verbergen |
 | Weer tonen | klik op het icoon in het systeemvak, of de sneltoets (standaard `Ctrl+Alt+U`, op de Mac `⌘⌥U`; te wijzigen in de instellingen), of start Claude Code opnieuw |
 | Helemaal afsluiten | systeemvak → Afsluiten, of rechtermuisknop → Afsluiten |
