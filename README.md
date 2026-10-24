@@ -57,8 +57,9 @@ een terminal en inloggen).
    *Meer informatie* → *Toch uitvoeren*.
 3. De app installeert zich, zet *Claude Meter* op je bureaublad en in het startmenu, en start.
 
-Nieuwe versies downloadt de app zelf; bovenin het paneel verschijnt dan *klik om te herstarten en
-bij te werken*.
+Bij het opstarten kijkt de app of er een nieuwe versie is en downloadt die zelf; bovenin het paneel
+verschijnt dan *klik om te herstarten en bij te werken*. Tussendoor zoeken kan via het tandwiel →
+*Controleren*.
 
 ### Mac
 
@@ -67,8 +68,9 @@ bij te werken*.
    *Systeeminstellingen* → *Privacy en beveiliging* en klik onderaan op *Open toch*.
 3. Kies bij de vraag om de sleutelhanger-item “Claude Code-credentials” te gebruiken *Altijd toestaan*.
 
-De Mac-app kan zichzelf niet vervangen (daarvoor is een betaald Apple-certificaat nodig): bij een
-nieuwe versie verschijnt bovenin het paneel *klik om te downloaden*; installeer dan de nieuwe `.dmg`.
+De Mac-app kan zichzelf niet vervangen (daarvoor is een betaald Apple-certificaat nodig): vindt hij
+bij het opstarten (of via tandwiel → *Controleren*) een nieuwe versie, dan verschijnt bovenin het
+paneel *klik om te downloaden*; installeer dan de nieuwe `.dmg`.
 
 ### Na installeren
 
