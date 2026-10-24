@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-widget",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Claude Meter: zwevende widget met je Claude-limieten (5 uur en week) en tokenverbruik per project.",
   "main": "main.js",
   "license": "MIT",
@@ -13,9 +13,86 @@
     "uninstall-hook": "node scripts/hook.js uninstall",
     "test": "node --test \"test/*.test.js\"",
     "shortcut": "node scripts/shortcut.js",
-    "setup": "node scripts/hook.js install && node scripts/shortcut.js"
+    "setup": "node scripts/hook.js install && node scripts/shortcut.js",
+    "dist": "electron-builder --publish never"
   },
   "dependencies": {
-    "electron": "^44.9.3"
+    "electron-updater": "6.8.10"
+  },
+  "devDependencies": {
+    "electron-builder": "26.17.0",
+    "electron": "44.9.3"
+  },
+  "productName": "Claude Meter",
+  "author": "Zikrullah Kafa",
+  "build": {
+    "appId": "nl.zikrullahkafa.claudemeter",
+    "productName": "Claude Meter",
+    "copyright": "Zikrullah Kafa",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**",
+      "renderer/**",
+      "assets/**",
+      "scripts/hook.js",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "zikrullahkafa",
+        "repo": "claude-interactive-viewer",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "Claude-Meter-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Claude Meter",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities",
+      "extendInfo": {
+        "LSUIElement": true
+      },
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "artifactName": "Claude-Meter-${version}.${ext}",
+      "title": "Claude Meter"
+    }
   }
 }
