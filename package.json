@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-widget",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Claude Meter: zwevende widget met je Claude-limieten (5 uur en week) en tokenverbruik per project.",
   "main": "main.js",
   "license": "MIT",
@@ -65,7 +65,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Claude Meter",
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     },
     "mac": {
       "target": [
@@ -87,6 +88,9 @@
     "dmg": {
       "artifactName": "Claude-Meter-${version}.${ext}",
       "title": "Claude Meter"
+    },
+    "directories": {
+      "buildResources": "build"
     }
   }
 }

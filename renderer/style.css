@@ -343,6 +343,7 @@ label.set-row { cursor: pointer; }
 .heatmap { position: relative; }
 .heatmap svg { display: block; width: 100%; height: auto; overflow: visible; }
 .heatmap .cell { stroke: var(--surface); stroke-width: 2; }
+.heatmap .chart-empty { background: color-mix(in srgb, var(--surface) 80%, transparent); border-radius: 8px; }
 .heat-scale { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); margin-top: 4px; }
 .heat-scale i { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--s1) 8%, transparent), var(--s1)); }
 

@@ -181,12 +181,12 @@ function render() {
   const prodEl = $('#products');
   prodEl.hidden = !(products && products.length);
   if (products && products.length) {
-    const colors = { cowork: '#a78bfa', chat: '#ff8a65', claude_code: '#38bdf8', other: '#8a8896' };
+    const colors = Object.fromEntries(Object.entries(PRODUCT_VARS).map(([k, v]) => [k, css(v)]));
     $('.stack', prodEl).replaceChildren(
       ...products.map((r) => {
         const seg = el('i');
         seg.style.width = `${r.percent}%`;
-        seg.style.background = colors[r.key] || '#8a8896';
+        seg.style.background = colors[r.key] || css('--s-other');
         seg.title = `${r.name}: ${r.percent}%`;
         return seg;
       })
@@ -195,7 +195,7 @@ function render() {
       ...products.map((r) => {
         const item = el('span');
         const dot = el('i');
-        dot.style.background = colors[r.key] || '#8a8896';
+        dot.style.background = colors[r.key] || css('--s-other');
         item.append(dot, `${r.name} `, el('b', null, `${r.percent}%`));
         return item;
       })
@@ -204,12 +204,16 @@ function render() {
 
   // iets nieuws van Anthropic, bijvoorbeeld een gratis reset
   const news = $('#news');
-  const fresh = u.newFields || [];
+  const acked = new Set(state.ackNews || []);
+  const fresh = (u.newFields || []).filter((f) => !acked.has(f.key));
   news.hidden = !fresh.length;
   if (fresh.length) {
+    const ok = el('button', 'link-btn', 'Begrepen');
+    ok.addEventListener('click', () => window.widget.ackNews(fresh.map((f) => f.key)));
     news.replaceChildren(
       el('b', null, 'Er staat iets nieuws in je account. '),
-      `Mogelijk een gratis reset of aanbieding; kijk op claude.ai bij Gebruik. (${fresh.map((f) => f.key).join(', ')})`
+      `Mogelijk een gratis reset of aanbieding; kijk op claude.ai bij Instellingen → Gebruik. (${fresh.map((f) => f.key).join(', ')}) `,
+      ok
     );
   }
 
@@ -349,9 +353,12 @@ function buildTips(u, d) {
 
   const s = d && d.summary;
   if (!s || !s.messages) {
+    const where = (u.products ? u.products.rows : [])
+      .filter((r) => r.percent > 0 && r.key !== 'claude_code')
+      .map((r) => `${r.name} ${r.percent}%`);
     out.push(
-      tip('💬', 'lvl-ok', 'Je verbruik zit in chats',
-        'Van gewone chats staan geen details op je computer. Wat helpt: per onderwerp een nieuw gesprek beginnen (elk bericht stuurt het hele gesprek opnieuw mee), vaste bestanden in een project zetten in plaats van ze steeds opnieuw te uploaden, en voor eenvoudige vragen Sonnet of een lagere effort kiezen.')
+      tip('💬', 'lvl-ok', where.length ? `Je verbruik zit in ${where.join(' en ')}` : 'Je verbruik zit in chats en Cowork',
+        'Daarvan staan geen details op je computer. Wat helpt: per taak een nieuw gesprek of een nieuwe Cowork-sessie beginnen (elk bericht stuurt het hele gesprek opnieuw mee), vaste bestanden in een project zetten in plaats van ze steeds opnieuw te uploaden, en voor eenvoudig werk Sonnet of een lagere effort kiezen.')
     );
     return out;
   }
@@ -665,6 +672,7 @@ function drawUsage(timeline) {
 
 // Verbruik per product (Chats, Cowork, Claude Code) in procent van de weeklimiet, uit eigen metingen.
 const PRODUCT_ORDER = ['chat', 'cowork', 'claude_code', 'other'];
+const PRODUCT_VARS = { chat: '--s1', cowork: '--s2', claude_code: '--s3', other: '--s-other' }; // overal dezelfde kleur per product
 const PRODUCT_NAMES = { chat: 'Chats', cowork: 'Cowork', claude_code: 'Claude Code', other: 'Overig' };
 
 function drawProducts(data) {
@@ -673,10 +681,9 @@ function drawProducts(data) {
   const mapped = sorted
     .filter((sr) => sr.values.some((v) => v > 0))
     .map((sr) => {
-      const slot = PRODUCT_ORDER.indexOf(sr.key);
       return {
         name: PRODUCT_NAMES[sr.key] || sr.key,
-        color: sr.key === 'other' || slot < 0 ? css('--s-other') : css(SERIES_VARS[slot]),
+        color: css(PRODUCT_VARS[sr.key] || '--s-other'),
         values: sr.values,
       };
     });
@@ -842,11 +849,15 @@ function expand() {
   pill.hidden = true;
   panel.hidden = false;
   window.widget.expand(panelHeight());
+  if (view === 'settings') openSettings();
+  else setView(view); // actuele gegevens laden voor het open tabblad
 }
 
 function collapse() {
   if (!isExpanded) return;
   isExpanded = false;
+  clearTimeout(trendTimer); // dicht: grafieken en mappen niet op de achtergrond verversen
+  clearTimeout(projTimer);
   panel.hidden = true;
   pill.hidden = false;
   window.widget.collapse();
@@ -908,7 +919,8 @@ function applyTheme(setting) {
   themeSetting = setting || 'dark';
   const resolved = themeSetting === 'system' ? (systemDark.matches ? 'dark' : 'light') : themeSetting;
   document.documentElement.dataset.theme = resolved;
-  if (view === 'trend') loadTrend(); // grafiekkleuren komen uit het thema
+  render(); // kleuren van de productbalk komen uit het thema
+  if (view === 'trend') loadTrend(); // grafiekkleuren ook
 }
 
 systemDark.addEventListener('change', () => applyTheme(themeSetting));
