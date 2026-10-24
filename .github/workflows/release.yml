@@ -1,6 +1,9 @@
 # Bouwt de Windows-installatie en de Mac-schijfkopie en zet ze in een GitHub Release.
 # Start: een tag v* pushen, of handmatig via Actions -> Release -> Run workflow.
 # De versie komt uit package.json; de geïnstalleerde apps zien de nieuwe release vanzelf.
+#
+# Eerst maakt één taak de release aan; daarna uploaden de bouwtaken alleen bestanden.
+# (electron-builder liet meerdere uploads tegelijk de release aanmaken, wat mislukte.)
 name: Release
 
 on:
@@ -12,12 +15,33 @@ permissions:
   contents: write
 
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: v
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Release aanmaken (als hij nog niet bestaat)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "${TAG#v}" \
+              --notes "Download **Claude-Meter-Setup-${TAG#v}.exe** voor Windows of **Claude-Meter-${TAG#v}.dmg** voor de Mac."
+
   build:
+    needs: release
     strategy:
       fail-fast: false
-      max-parallel: 1 # na elkaar: anders maken beide tegelijk dezelfde release aan
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            files: dist/*.exe dist/*.exe.blockmap dist/latest.yml
+          - os: macos-latest
+            files: dist/*.dmg dist/*.dmg.blockmap dist/latest-mac.yml
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -27,8 +51,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Bouwen en publiceren
-        run: npx electron-builder --publish always
+      - name: Bouwen
+        run: npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Uploaden naar de release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: gh release upload "${{ needs.release.outputs.tag }}" ${{ matrix.files }} --clobber
