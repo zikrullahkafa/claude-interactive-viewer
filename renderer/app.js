@@ -47,6 +47,17 @@ function formatReset(iso, short = false) {
   return short ? `↻ ${rel} · ${when}` : `Reset over ${rel} · ${when}`;
 }
 
+// Korte resttijd voor de pil: "2u18", "45m", "3d14u".
+function shortLeft(iso) {
+  const min = Math.max(0, Math.round((new Date(iso) - Date.now()) / 60000));
+  const d = Math.floor(min / 1440);
+  const h = Math.floor((min % 1440) / 60);
+  const m = min % 60;
+  if (d) return `${d}d${h}u`;
+  if (h) return `${h}u${String(m).padStart(2, '0')}`;
+  return `${m}m`;
+}
+
 function formatAgo(iso) {
   if (!iso) return 'Nog niet bijgewerkt';
   const s = Math.round((Date.now() - new Date(iso)) / 1000);
@@ -113,6 +124,10 @@ function render() {
     setLevel(b, u[key] && u[key].percent);
   }
   $('.pill-alert', pill).hidden = !state.error;
+  for (const key of ['fiveHour', 'sevenDay']) {
+    const w = u[key];
+    $(`[data-reset="${key}"]`, pill).textContent = w && w.resetsAt ? shortLeft(w.resetsAt) : '';
+  }
   pill.title = `5 uur ${pctText(u.fiveHour)} · week ${pctText(u.sevenDay)}\nKlik voor details, sleep om te verplaatsen`;
 
   const pace = weekPace(u);
@@ -826,6 +841,65 @@ window.widget.onUsage((payload) => {
   render();
 });
 
+// ---------- instellingen ----------
+
+let settings = null;
+let viewBeforeSettings = 'limits';
+
+function renderSettings(s) {
+  settings = s;
+  for (const seg of $$('.seg[data-setting]')) {
+    for (const b of $$('button', seg)) b.classList.toggle('active', b.dataset.value === s[seg.dataset.setting]);
+  }
+  for (const input of $$('input.switch[data-setting]')) input.checked = !!s[input.dataset.setting];
+  $('#row-hook').hidden = !s.hookAvailable;
+  $('#row-openclaude').hidden = !s.openClaudeAvailable;
+  const group = $('#notify-group');
+  $$('.set-row', group).forEach((r) => r.remove());
+  for (const [key, label] of s.notifyLabels) {
+    const row = el('label', 'set-row');
+    const input = el('input', 'switch');
+    input.type = 'checkbox';
+    input.checked = !!s.notify[key];
+    input.addEventListener('change', async () => renderSettings(await window.widget.setSetting('notify', { [key]: input.checked })));
+    row.append(el('span', null, label), input);
+    group.append(row);
+  }
+  $('#set-version').textContent = s.version;
+  $('#set-update').textContent = s.update
+    ? `Versie ${s.update.version} ${s.update.status === 'ready' ? 'staat klaar' : s.update.status === 'downloading' ? 'wordt gedownload' : 'is beschikbaar'}`
+    : s.packaged ? 'Je hebt de nieuwste versie' : 'Ontwikkelversie (bijwerken met git pull)';
+  $('#btn-check-update').hidden = !s.packaged;
+}
+
+async function openSettings() {
+  if (view !== 'settings') viewBeforeSettings = view;
+  setView('settings');
+  renderSettings(await window.widget.getSettings());
+}
+
+$('#btn-settings').addEventListener('click', () => (view === 'settings' ? setView(viewBeforeSettings) : openSettings()));
+$('#btn-settings-back').addEventListener('click', () => setView(viewBeforeSettings));
+for (const seg of $$('.seg[data-setting]')) {
+  for (const b of $$('button', seg)) {
+    b.addEventListener('click', async () => {
+      const s = await window.widget.setSetting(seg.dataset.setting, b.dataset.value);
+      renderSettings(s);
+      if (seg.dataset.setting === 'theme') applyTheme(s.theme);
+    });
+  }
+}
+for (const input of $$('input.switch[data-setting]')) {
+  input.addEventListener('change', async () => renderSettings(await window.widget.setSetting(input.dataset.setting, input.checked)));
+}
+$('#btn-check-update').addEventListener('click', () => {
+  window.widget.checkUpdate();
+  $('#set-update').textContent = 'Bezig met controleren…';
+  setTimeout(async () => renderSettings(await window.widget.getSettings()), 4000);
+});
+$('#btn-open-raw').addEventListener('click', () => window.widget.openRaw());
+$('#btn-open-logcheck').addEventListener('click', () => window.widget.openLogCheck());
+
 // ---------- nieuwe versie ----------
 
 function renderUpdate(u) {
@@ -843,10 +917,13 @@ function renderUpdate(u) {
 $('#update').addEventListener('click', () => window.widget.installUpdate());
 window.widget.onUpdate(renderUpdate);
 window.widget.onOpenPanel(() => expand()); // klik op een melding opent het paneel
+const applyPillScale = (k) => (pill.style.zoom = String(k || 1));
+window.widget.onPillSize(applyPillScale);
 
 window.widget.getState().then((s) => {
   state = s;
   applyTheme(s.theme);
+  applyPillScale(s.pillScale);
   renderUpdate(s.update);
   updateMappenTab();
   const keys = s.shortcut.replace('CommandOrControl', navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl');

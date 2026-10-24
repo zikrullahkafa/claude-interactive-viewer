@@ -14,7 +14,13 @@ const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
 const BACKOFF_MS = 10 * 60 * 1000;
 const MIN_MANUAL_MS = 15 * 1000;
-const PILL = { width: 176, height: 64 };
+// Pilgrootte: CSS-afmeting 200x48 maal de schaal, plus 2x8px rand voor de schaduw.
+const PILL_SCALES = { small: 0.85, normal: 1, large: 1.2 };
+const pill = () => {
+  const k = PILL_SCALES[config.pillSize] || 1;
+  return { width: Math.round(200 * k + 16), height: Math.round(48 * k + 16) };
+};
+const SNAP_PX = 40; // dichter bij de rand dan dit: vastklikken
 const PANEL_WIDTH = 340;
 const MARGIN = 16;
 const SHORTCUT = 'CommandOrControl+Alt+U';
@@ -58,7 +64,7 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, lastUsage: null,
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillSize: 'normal', lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
 
@@ -207,12 +213,12 @@ function clamp(bounds) {
 
 function defaultPillPos() {
   const wa = screen.getPrimaryDisplay().workArea;
-  return { x: wa.x + wa.width - PILL.width - MARGIN, y: wa.y + MARGIN };
+  return { x: wa.x + wa.width - pill().width - MARGIN, y: wa.y + MARGIN };
 }
 
 function createWindow() {
   pillPos = config.position || defaultPillPos();
-  const b = clamp({ ...pillPos, ...PILL });
+  const b = clamp({ ...pillPos, ...pill() });
   pillPos = { x: b.x, y: b.y };
 
   win = new BrowserWindow({
@@ -269,19 +275,19 @@ function setExpanded(value, height) {
   if (value) {
     const wa = workArea({ x: pillPos.x, y: pillPos.y });
     anchor = {
-      right: pillPos.x + PILL.width / 2 > wa.x + wa.width / 2,
-      bottom: pillPos.y + PILL.height / 2 > wa.y + wa.height / 2,
+      right: pillPos.x + pill().width / 2 > wa.x + wa.width / 2,
+      bottom: pillPos.y + pill().height / 2 > wa.y + wa.height / 2,
     };
-    const h = Math.min(Math.max(PILL.height, Math.round(height || 320)), wa.height - 2 * MARGIN);
-    const x = anchor.right ? pillPos.x + PILL.width - PANEL_WIDTH : pillPos.x;
-    const y = anchor.bottom ? pillPos.y + PILL.height - h : pillPos.y;
+    const h = Math.min(Math.max(pill().height, Math.round(height || 320)), wa.height - 2 * MARGIN);
+    const x = anchor.right ? pillPos.x + pill().width - PANEL_WIDTH : pillPos.x;
+    const y = anchor.bottom ? pillPos.y + pill().height - h : pillPos.y;
     win.setBounds(clamp({ x, y, width: PANEL_WIDTH, height: h }));
   } else {
     // Pil terug op de hoek waar het paneel aan vastzat (het paneel kan versleept zijn).
     const b = win.getBounds();
-    const x = anchor.right ? b.x + b.width - PILL.width : b.x;
-    const y = anchor.bottom ? b.y + b.height - PILL.height : b.y;
-    const nb = clamp({ x, y, ...PILL });
+    const x = anchor.right ? b.x + b.width - pill().width : b.x;
+    const y = anchor.bottom ? b.y + b.height - pill().height : b.y;
+    const nb = clamp({ x, y, ...pill() });
     pillPos = { x: nb.x, y: nb.y };
     win.setBounds(nb);
     config.position = pillPos;
@@ -408,6 +414,12 @@ function updateTrayMenu() {
         click: (item) => setHookEnabled(item.checked),
       },
       {
+        label: 'Grootte van de pil',
+        submenu: [['small', 'Klein'], ['normal', 'Normaal'], ['large', 'Groot']].map(([id, label]) => ({
+          label, type: 'radio', checked: (config.pillSize || 'normal') === id, click: () => setPillSize(id),
+        })),
+      },
+      {
         label: 'Meldingen',
         submenu: NOTIFY_LABELS.map(([key, label]) => ({
           label,
@@ -474,11 +486,62 @@ function createTray() {
 
 ipcMain.handle('get-state', () => ({
   usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme,
+  pillScale: PILL_SCALES[config.pillSize] || 1,
   update: updateState, version: app.getVersion(),
 }));
 ipcMain.on('install-update', () => updater && updater.install());
 ipcMain.on('refresh', () => refresh(true));
 ipcMain.on('set-theme', (_e, theme) => applyTheme(theme));
+
+// ---------- instellingenscherm ----------
+
+function settingsSnapshot() {
+  return {
+    theme: config.theme,
+    pillSize: config.pillSize || 'normal',
+    alwaysOnTop: config.alwaysOnTop,
+    hookAvailable: hook.claudeCodeInstalled(),
+    hook: hook.hookStatus(),
+    openClaude: config.openClaude,
+    openClaudeAvailable: process.platform === 'win32' || process.platform === 'darwin',
+    notify: { ...alerts.DEFAULTS, ...config.notify },
+    notifyLabels: NOTIFY_LABELS,
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    update: updateState,
+  };
+}
+
+const SETTERS = {
+  theme: (v) => applyTheme(v),
+  pillSize: (v) => setPillSize(v),
+  alwaysOnTop: (v) => {
+    config.alwaysOnTop = !!v;
+    if (win) win.setAlwaysOnTop(config.alwaysOnTop, 'floating');
+    saveConfig();
+  },
+  hook: (v) => setHookEnabled(!!v),
+  openClaude: (v) => {
+    config.openClaude = !!v;
+    saveConfig();
+  },
+  notify: (v) => {
+    if (!v || typeof v !== 'object') return;
+    config.notify = { ...alerts.DEFAULTS, ...config.notify };
+    for (const k of Object.keys(alerts.DEFAULTS)) if (k in v) config.notify[k] = !!v[k];
+    saveConfig();
+  },
+};
+
+ipcMain.handle('get-settings', () => settingsSnapshot());
+ipcMain.handle('set-setting', (_e, key, value) => {
+  if (SETTERS[key]) SETTERS[key](value);
+  updateTrayMenu();
+  return settingsSnapshot();
+});
+ipcMain.on('check-update', () => updater && updater.check());
+ipcMain.on('open-raw', () => !DEMO && shell.openPath(rawFile()));
+ipcMain.on('open-logcheck', () => openLogCheck());
 ipcMain.handle('projects', (_e, sinceMs, bucket) => {
   const min = Date.now() - 62 * 86400e3;
   return projectUsage(Number.isFinite(sinceMs) && sinceMs > min ? sinceMs : Date.now() - 7 * 86400e3, { bucket });
@@ -511,10 +574,43 @@ ipcMain.on('drag-move', () => {
   const b = win.getBounds();
   win.setBounds({ ...b, x: dragOrigin.x + c.x - dragOrigin.cursor.x, y: dragOrigin.y + c.y - dragOrigin.cursor.y });
 });
+// Na slepen: dicht bij een schermrand? Dan netjes op vaste afstand van die rand.
+function snap(b) {
+  const wa = workArea({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+  const out = { ...b };
+  if (b.x - wa.x < SNAP_PX) out.x = wa.x + MARGIN;
+  if (wa.x + wa.width - (b.x + b.width) < SNAP_PX) out.x = wa.x + wa.width - b.width - MARGIN;
+  if (b.y - wa.y < SNAP_PX) out.y = wa.y + MARGIN;
+  if (wa.y + wa.height - (b.y + b.height) < SNAP_PX) out.y = wa.y + wa.height - b.height - MARGIN;
+  return out;
+}
+
+function setPillSize(size) {
+  config.pillSize = PILL_SCALES[size] ? size : 'normal';
+  saveConfig();
+  if (win) {
+    win.webContents.send('pill-size', PILL_SCALES[config.pillSize]);
+    if (!expanded) {
+      // Rechter- en onderrand vasthouden als de pil in die helft van het scherm staat.
+      const b = win.getBounds();
+      const wa = workArea({ x: b.x, y: b.y });
+      const p = pill();
+      const right = b.x + b.width / 2 > wa.x + wa.width / 2;
+      const bottom = b.y + b.height / 2 > wa.y + wa.height / 2;
+      const nb = clamp({ x: right ? b.x + b.width - p.width : b.x, y: bottom ? b.y + b.height - p.height : b.y, ...p });
+      win.setBounds(nb);
+      pillPos = { x: nb.x, y: nb.y };
+      config.position = pillPos;
+      saveConfig();
+    }
+  }
+  updateTrayMenu();
+}
+
 ipcMain.on('drag-end', () => {
   if (!win || !dragOrigin) return;
   dragOrigin = null;
-  const b = clamp(win.getBounds());
+  const b = clamp(expanded ? win.getBounds() : snap(win.getBounds()));
   win.setBounds(b);
   if (!expanded) {
     pillPos = { x: b.x, y: b.y };

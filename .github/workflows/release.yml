@@ -15,6 +15,7 @@ jobs:
   build:
     strategy:
       fail-fast: false
+      max-parallel: 1 # na elkaar: anders maken beide tegelijk dezelfde release aan
       matrix:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
