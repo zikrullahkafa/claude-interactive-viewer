@@ -38,10 +38,12 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Tabblad Tips:** aanwijzingen om zuiniger te werken, afgeleid uit je limieten en je Claude
   Code-sessies van deze week (effort-levels, modelkeuze, lengte van sessies, denkwerk).
 - **Slepen** om hem te verplaatsen; de plek wordt onthouden.
-- **Groter of kleiner:** sleep aan een hoek van de pil of het paneel. Alles schaalt in verhouding
-  mee (pil 70–200%, paneel 80–160%) en de hoek tegenover de hoek waaraan je sleept, blijft staan.
-  Pil en paneel onthouden elk hun eigen grootte. Terug naar normaal: instellingen →
-  *Standaardgrootte*; voor de pil kan ook Klein/Normaal/Groot.
+- **Groter of kleiner:** sleep aan een hoek van de pil of het paneel; de hoek tegenover de hoek
+  waaraan je sleept, blijft staan. De pil schaalt in verhouding mee (70–200%). Bij het paneel volgt
+  de hoek je muis: de breedte bepaalt hoe groot alles is (80–160%), de hoogte hoeveel je ziet.
+  Het paneel houdt die maat op elk tabblad; langere inhoud (Verloop, Instellingen) scrolt, de
+  bovenbalk en tabbladen blijven staan. Pil en paneel onthouden elk hun eigen grootte. Terug naar
+  normaal: instellingen → *Standaardgrootte*; voor de pil kan ook Klein/Normaal/Groot.
 
 ## Installeren
 
