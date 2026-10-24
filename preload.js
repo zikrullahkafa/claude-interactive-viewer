@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('widget', {
   openLogCheck: () => ipcRenderer.send('open-logcheck'),
   projects: (sinceMs, bucket) => ipcRenderer.invoke('projects', sinceMs, bucket),
   history: (sinceMs) => ipcRenderer.invoke('history', sinceMs),
+  patterns: () => ipcRenderer.invoke('patterns'),
   productUsage: (sinceMs, bucket) => ipcRenderer.invoke('product-usage', sinceMs, bucket),
   expand: (height) => ipcRenderer.send('expand', height),
   collapse: () => ipcRenderer.send('collapse'),

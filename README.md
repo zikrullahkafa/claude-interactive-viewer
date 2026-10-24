@@ -3,7 +3,8 @@
 Een kleine zwevende widget die altijd bovenop staat en laat zien hoeveel van je Claude-limieten je
 hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 
-- **Ingeklapt:** een pil met een ring voor de 5-uurslimiet en de percentages van 5 uur en week.
+- **Ingeklapt:** een pil met twee ringen (5 uur en week), de percentages en hoe lang het nog duurt
+  tot elke reset. Grootte klein/normaal/groot; na slepen klikt hij vast aan de schermrand.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
@@ -17,7 +18,11 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   tijd (bij 24 uur ook de 5-uurslimiet), uit metingen die de widget zelf opslaat zolang hij openstaat
   (`limietverloop.jsonl`, maximaal 62 dagen). Daaronder het verbruik per dag of per uur, gestapeld
   per map (in dollars API-waarde of in tokens), met een legenda met totalen. Daartussen het verbruik per
-  product (Chats, Cowork, Claude Code) in procent van je weeklimiet, ook uit de eigen metingen. Beweeg over de grafiek
+  product (Chats, Cowork, Claude Code) in procent van je weeklimiet, ook uit de eigen metingen,
+  en **Patronen**: deze week tegenover vorige week en een heatmap van de dagen en tijden waarop je het
+  meest verbruikt (laatste 4 weken). Elke staafgrafiek kan ook als tabel.
+- **Instellingen** (tandwiel): thema, pilgrootte, altijd bovenop, meestarten met Claude Code,
+  Claude-app meeopenen, meldingen per soort, versie en zoeken naar updates. Beweeg over de grafiek
   voor de precieze waarden.
 - **Meldingen** (Windows/Mac): bij 80% en 90% van je 5-uurs- of weeklimiet, als je week te snel
   opraakt, na een reset, bij iets nieuws in je account (zoals een gratis reset) en als je cloudtegoed

@@ -39,3 +39,27 @@ test('verbruik per product per dag, ook over een weekreset heen', () => {
   assert.deepStrictEqual(byKey.chat, [0, 15, 4]);
   assert.deepStrictEqual(byKey.cowork, [10, 5, 0]);
 });
+
+test('patronen: heatmap per dag en tijdvak, vergelijking met vorige week', () => {
+  const { patterns } = require('../lib/history');
+  const D = 86400e3;
+  // maandag 19 okt 2026, lokale tijd
+  const mon = new Date(2026, 9, 19, 0, 0, 0).getTime();
+  const reset = new Date(mon + 7 * D + 9 * 3600e3).toISOString(); // huidige week: ma 26 okt 09:00 reset
+  const pts = [
+    { t: mon - 6 * D + 10 * 3600e3, w: 10 }, // vorige week di
+    { t: mon - 6 * D + 11 * 3600e3, w: 30 },
+    { t: mon + 9.5 * 3600e3, w: 2 }, // na reset (ma 19 okt 09:00): telt als 2
+    { t: mon + 10.5 * 3600e3, w: 7 }, // ma 10:30: +5
+    { t: mon + D + 15 * 3600e3, w: 20 }, // gat > 6 uur: niet meegeteld
+    { t: mon + D + 16 * 3600e3, w: 26 }, // di 16:00: +6
+  ];
+  const r = patterns(pts, reset, mon + D + 16 * 3600e3);
+  assert.strictEqual(r.heat[0][4], 0); // ma 09:30: gat van dagen ervoor, dus niet toe te wijzen
+  assert.strictEqual(r.heat[0][5], 5); // ma 10-12
+  assert.strictEqual(r.heat[1][8], 6); // di 16-18
+  assert.strictEqual(r.heat[1][5], 20); // vorige week di 10-12
+  assert.strictEqual(r.compare.now, 26);
+  assert.strictEqual(r.compare.lastWeekTotal, 30);
+  assert.strictEqual(r.compare.lastWeekSameTime, null); // geen meting precies een week eerder
+});

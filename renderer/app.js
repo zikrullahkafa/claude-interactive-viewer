@@ -601,6 +601,32 @@ function drawStacked(box, { starts, bucket, series, fmt, emptyText }) {
   });
 }
 
+// Dezelfde cijfers als tabel (zonder kleur leesbaar); open met de knop onder de grafiek.
+function renderTable(card, { starts, bucket, series, fmt }) {
+  let wrap = $('.data-table', card);
+  if (!wrap) {
+    const toggle = el('button', 'link-btn table-toggle', 'Als tabel');
+    wrap = el('div', 'data-table');
+    wrap.hidden = true;
+    toggle.addEventListener('click', () => {
+      wrap.hidden = !wrap.hidden;
+      toggle.textContent = wrap.hidden ? 'Als tabel' : 'Tabel verbergen';
+    });
+    card.append(toggle, wrap);
+  }
+  const table = el('table');
+  const head = el('tr');
+  head.append(el('th', null, bucket === 'hour' ? 'Uur' : 'Dag'), ...series.map((sr) => el('th', null, sr.name)));
+  table.append(head);
+  starts.forEach((t, i) => {
+    if (!series.some((sr) => sr.values[i] > 0)) return; // lege rijen weglaten
+    const tr = el('tr');
+    tr.append(el('td', null, bucket === 'hour' ? hourFmt.format(t) : dayShortFmt.format(t)), ...series.map((sr) => el('td', null, sr.values[i] ? fmt(sr.values[i]) : '–')));
+    table.append(tr);
+  });
+  wrap.replaceChildren(table);
+}
+
 // Legenda met totaal per reeks: ook leesbaar zonder kleur.
 function renderLegend(ul, series, fmt) {
   ul.replaceChildren(
@@ -629,6 +655,7 @@ function drawUsage(timeline) {
   $('#usage-title').textContent = bucket === 'hour' ? 'Per map, per uur' : 'Per map, per dag';
   drawStacked($('#chart-usage'), { starts, bucket, series: mapped, fmt, emptyText: 'Geen Claude Code- of Cowork-sessies op deze computer in deze periode.' });
   renderLegend($('#usage-legend'), mapped, fmt);
+  renderTable($('#chart-usage').closest('.chart-card'), { starts, bucket, series: mapped, fmt });
   const products = state.usage && state.usage.products ? state.usage.products.rows : [];
   const notLocal = products.filter((r) => r.percent > 0 && r.key !== 'claude_code').map((r) => `${r.name} ${r.percent}%`);
   $('#usage-note').textContent =
@@ -660,6 +687,74 @@ function drawProducts(data) {
     emptyText: 'Nog te weinig metingen. De widget houdt dit bij zolang hij draait; dit vult zich vanzelf.',
   });
   renderLegend($('#products-legend'), mapped, fmt);
+  renderTable($('#chart-products').closest('.chart-card'), { starts, bucket, series: mapped, fmt });
+}
+
+// Patronen: vergelijking met vorige week en een heatmap per dag en tijdvak.
+const DAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+const DAYS_LONG = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'];
+
+function drawPatterns(p) {
+  const fmt = (n) => `${Math.round(n)}%`;
+  const c = p.compare;
+  const tile = (label, value, extra) => {
+    const t = el('div', 'tile');
+    const b = el('b', null, value);
+    t.append(el('span', null, label), b);
+    if (extra) b.after(el('small', null, extra));
+    return t;
+  };
+  const tiles = [];
+  if (c) {
+    const diff = c.lastWeekSameTime != null ? c.now - c.lastWeekSameTime : null;
+    tiles.push(tile('Deze week tot nu', fmt(c.now), diff != null ? `${diff > 0 ? '+' : ''}${Math.round(diff)} t.o.v. vorige week` : null));
+    tiles.push(tile('Vorige week in totaal', c.lastWeekTotal != null ? fmt(c.lastWeekTotal) : '–', c.lastWeekTotal == null ? 'nog niet gemeten' : null));
+  }
+  $('#compare').replaceChildren(...tiles);
+
+  const box = $('#heatmap');
+  box.replaceChildren();
+  const max = Math.max(0, ...p.heat.flat());
+  const cols = p.heat[0].length;
+  const W = box.clientWidth || 296;
+  const labelW = 22;
+  const cell = (W - labelW) / cols;
+  const H = 7 * cell + 14;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  const s1 = css('--s1');
+  p.heat.forEach((row, d) => {
+    const lbl = svgEl('text', { x: 0, y: d * cell + cell / 2 + 3 }, 'axis-label');
+    lbl.textContent = DAYS[d];
+    svg.append(lbl);
+    row.forEach((v, b) => {
+      const r = svgEl('rect', { x: labelW + b * cell, y: d * cell, width: cell, height: cell, rx: 3, fill: s1, 'fill-opacity': max ? 0.07 + 0.93 * (v / max) : 0.07 }, 'cell');
+      r.addEventListener('pointerenter', () => {
+        const from = String(b * p.blockHours).padStart(2, '0');
+        const to = String((b + 1) * p.blockHours).padStart(2, '0');
+        showTooltip(box, labelW + b * cell + cell, d * cell, `${DAYS_LONG[d]} ${from}:00–${to}:00`, [[s1, 'Verbruikt', `${v.toLocaleString('nl-NL', { maximumFractionDigits: 1 })}% van een week`]]);
+      });
+      r.addEventListener('pointerleave', () => hideTooltip(box));
+      svg.append(r);
+    });
+  });
+  for (const hr of [0, 6, 12, 18]) {
+    const lbl = svgEl('text', { x: labelW + (hr / p.blockHours) * cell, y: H - 2 }, 'axis-label');
+    lbl.textContent = String(hr).padStart(2, '0');
+    svg.append(lbl);
+  }
+  box.append(svg);
+  const scale = el('div', 'heat-scale');
+  scale.append('minder', el('i'), 'meer');
+  box.append(scale);
+  if (p.coveredDays < 3) {
+    box.append(el('div', 'chart-empty', 'Nog te weinig metingen voor patronen. Na een paar dagen met de widget open verschijnt hier wanneer je het meest verbruikt.'));
+  }
+  // Drukste tijdvak in woorden: ook leesbaar zonder kleur.
+  let best = null;
+  p.heat.forEach((row, d) => row.forEach((v, b) => { if (v > 0 && (!best || v > best.v)) best = { v, d, b }; }));
+  $('#patterns-note').textContent = best && p.coveredDays >= 3
+    ? `Je verbruikt het meest op ${DAYS_LONG[best.d]} tussen ${String(best.b * p.blockHours).padStart(2, '0')}:00 en ${String((best.b + 1) * p.blockHours).padStart(2, '0')}:00. Gemeten over ${Math.round(p.coveredDays)} dagen.`
+    : '';
 }
 
 async function loadTrend() {
@@ -679,6 +774,7 @@ async function loadTrend() {
     ]);
     drawLimits(points, since);
     drawProducts(products);
+    window.widget.patterns().then(drawPatterns).catch(() => {});
     lastTimeline = usage.timeline;
     drawUsage(lastTimeline);
   } catch {

@@ -5,7 +5,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
 const { projectUsage, describeLogs, bucketStarts } = require('./lib/projects');
-const { createHistory, productUsage } = require('./lib/history');
+const { createHistory, productUsage, patterns } = require('./lib/history');
 const { createUpdater } = require('./lib/updates');
 const alerts = require('./lib/alerts');
 const hook = require('./scripts/hook');
@@ -553,6 +553,11 @@ ipcMain.handle('product-usage', (_e, sinceMs, bucket) => {
   // Eén meting van vóór de periode erbij, zodat het eerste verschil klopt.
   const points = DEMO ? demoHistory(since - 86400e3) : history().read(since - 86400e3);
   return { starts, bucket: b, series: productUsage(points, starts, b === 'hour' ? 3600e3 : 86400e3) };
+});
+ipcMain.handle('patterns', () => {
+  const since = Date.now() - 28 * 86400e3;
+  const points = DEMO ? demoHistory(since) : history().read(since);
+  return patterns(points, lastUsage && lastUsage.sevenDay ? lastUsage.sevenDay.resetsAt : null);
 });
 ipcMain.handle('history', (_e, sinceMs) => {
   const since = Number.isFinite(sinceMs) ? sinceMs : Date.now() - 7 * 86400e3;
