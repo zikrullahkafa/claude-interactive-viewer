@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('widget', {
   getState: () => ipcRenderer.invoke('get-state'),
   onUsage: (cb) => ipcRenderer.on('usage', (_e, payload) => cb(payload)),
   onTheme: (cb) => ipcRenderer.on('theme', (_e, theme) => cb(theme)),
+  onFade: (cb) => ipcRenderer.on('fade', (_e, mode) => cb(mode)),
   onUpdate: (cb) => ipcRenderer.on('update', (_e, update) => cb(update)),
   installUpdate: () => ipcRenderer.send('install-update'),
   onOpenPanel: (cb) => ipcRenderer.on('open-panel', () => cb()),

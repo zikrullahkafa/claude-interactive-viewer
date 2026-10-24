@@ -24,6 +24,8 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   gebruiker wil dat niet): `.panel-body` scrolt. Hoeken slepen via IPC `resize-start/move/end`
   (cursor uit `screen`, tegenoverliggende hoek blijft vast, niet voorbij de schermrand); pil
   schaalt in verhouding, bij het paneel volgt de hoek de muis (breedte → schaal, hoogte → panelHeight).
+  `config.idleFade` (off/light/strong): de pil vervaagt zonder muis erop; alleen CSS
+  (`body[data-fade]`, `--fade`), main stuurt `fade` naar de renderer.
 - `renderer/`: interface. Tabbladen Limieten, Verloop (SVG-grafieken, zonder bibliotheek), Mappen
   (alleen als er 30 dagen lokale data is), Tips. Grafiekkleuren: `--s1`..`--s4` + `--s-other`,
   gevalideerd palet (dataviz-skill), aparte stappen voor licht en donker.
