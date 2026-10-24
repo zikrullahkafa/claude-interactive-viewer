@@ -973,6 +973,16 @@ function renderSettings(s) {
     row.append(el('span', null, label), input);
     group.append(row);
   }
+  // sneltoets
+  if (!recordingShortcut) $('#btn-shortcut').textContent = s.shortcutLabel;
+  $('#shortcut').textContent = s.shortcutLabel;
+  $('#shortcut').hidden = s.shortcut === 'none';
+  // stille uren
+  $('#quiet-enabled').checked = !!s.quietHours.enabled;
+  $('#quiet-from').value = s.quietHours.from;
+  $('#quiet-to').value = s.quietHours.to;
+  $('#quiet-times').classList.toggle('disabled', !s.quietHours.enabled);
+  $('#btn-test-notify').disabled = !s.notificationsSupported;
   $('#set-version').textContent = s.version;
   $('#set-update').textContent = s.update
     ? `Versie ${s.update.version} ${s.update.status === 'ready' ? 'staat klaar' : s.update.status === 'downloading' ? 'wordt gedownload' : 'is beschikbaar'}`
@@ -1005,6 +1015,89 @@ $('#btn-check-update').addEventListener('click', () => {
   $('#set-update').textContent = 'Bezig met controleren…';
   setTimeout(async () => renderSettings(await window.widget.getSettings()), 4000);
 });
+// Sneltoets opnemen: klik, druk de combinatie, klaar. Esc annuleert.
+let recordingShortcut = false;
+const shortcutBtn = $('#btn-shortcut');
+function stopRecording() {
+  recordingShortcut = false;
+  shortcutBtn.classList.remove('recording');
+  window.widget.pauseShortcut(false);
+  window.removeEventListener('keydown', onShortcutKey, true);
+}
+async function onShortcutKey(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.key === 'Escape') {
+    stopRecording();
+    renderSettings(await window.widget.getSettings());
+    return;
+  }
+  if (['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'].includes(e.key)) return; // wachten op de echte toets
+  const res = await window.widget.setShortcut({ code: e.code, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey });
+  stopRecording();
+  renderSettings(res.settings);
+  $('#shortcut-hint').textContent = res.error || 'Opgeslagen. Werkt vanuit elk programma.';
+}
+shortcutBtn.addEventListener('click', () => {
+  if (recordingShortcut) return;
+  recordingShortcut = true;
+  shortcutBtn.classList.add('recording');
+  shortcutBtn.textContent = 'Druk op toetsen…';
+  $('#shortcut-hint').textContent = 'Bijv. Ctrl + Shift + M. Esc om te annuleren.';
+  window.widget.pauseShortcut(true);
+  window.addEventListener('keydown', onShortcutKey, true);
+});
+shortcutBtn.addEventListener('blur', () => {
+  if (recordingShortcut) {
+    stopRecording();
+    window.widget.getSettings().then(renderSettings);
+  }
+});
+for (const [id, value] of [['#btn-shortcut-reset', 'default'], ['#btn-shortcut-off', 'none']]) {
+  $(id).addEventListener('click', async () => {
+    const res = await window.widget.setShortcut(value);
+    renderSettings(res.settings);
+    $('#shortcut-hint').textContent = res.error || (value === 'none' ? 'Geen sneltoets.' : 'Standaard hersteld.');
+  });
+}
+
+// Stille uren
+$('#quiet-enabled').addEventListener('change', async (e) => renderSettings(await window.widget.setSetting('quietHours', { enabled: e.target.checked })));
+for (const id of ['#quiet-from', '#quiet-to']) {
+  const input = $(id);
+  input.pattern = '([01]?\\d|2[0-3]):[0-5]\\d';
+  input.addEventListener('change', async () => {
+    // "9" of "930" mag ook: aanvullen tot 09:00 / 09:30
+    let v = input.value.trim().replace('.', ':');
+    if (/^\d{1,2}$/.test(v)) v = `${v}:00`;
+    if (/^\d{3,4}$/.test(v)) v = `${v.slice(0, -2)}:${v.slice(-2)}`;
+    if (/^\d:/.test(v)) v = `0${v}`;
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) {
+      renderSettings(await window.widget.getSettings()); // ongeldig: oude waarde terug
+      return;
+    }
+    renderSettings(await window.widget.setSetting('quietHours', { [id === '#quiet-from' ? 'from' : 'to']: v }));
+  });
+}
+$('#btn-test-notify').addEventListener('click', async () => {
+  const r = await window.widget.testNotification();
+  $('#test-result').textContent = r.supported
+    ? 'Verstuurd. Zie je niets? Zet meldingen voor Claude Meter aan in de systeeminstellingen.'
+    : 'Meldingen worden op dit systeem niet ondersteund.';
+});
+
+// Exporteren
+for (const b of $$('[data-export]')) {
+  b.addEventListener('click', async () => {
+    const out = $('#export-result');
+    $$('[data-export]').forEach((x) => (x.disabled = true));
+    out.textContent = 'Bezig…';
+    const r = await window.widget.exportReport(b.dataset.export);
+    $$('[data-export]').forEach((x) => (x.disabled = false));
+    out.textContent = r.error || (r.canceled ? '' : `Opgeslagen: ${r.path}`);
+  });
+}
+
 $('#btn-open-raw').addEventListener('click', () => window.widget.openRaw());
 $('#btn-open-logcheck').addEventListener('click', () => window.widget.openLogCheck());
 
@@ -1034,9 +1127,9 @@ window.widget.getState().then((s) => {
   applyPillScale(s.pillScale);
   renderUpdate(s.update);
   updateMappenTab();
-  const keys = s.shortcut.replace('CommandOrControl', navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl');
-  $('#shortcut').textContent = keys.replaceAll('+', ' ');
-  $('#shortcut').title = 'Sneltoets om de widget te tonen of te verbergen';
+  $('#shortcut').textContent = s.shortcut;
+  $('#shortcut').hidden = s.shortcut === 'Geen';
+  $('#shortcut').title = 'Sneltoets om de widget te tonen of te verbergen (wijzigen in de instellingen)';
   panel.dataset.view = view;
   render();
 });

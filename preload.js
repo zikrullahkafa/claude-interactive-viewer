@@ -30,4 +30,8 @@ contextBridge.exposeInMainWorld('widget', {
   dragEnd: () => ipcRenderer.send('drag-end'),
   contextMenu: () => ipcRenderer.send('context-menu'),
   ackNews: (keys) => ipcRenderer.send('ack-news', keys),
+  testNotification: () => ipcRenderer.invoke('test-notification'),
+  setShortcut: (keyInfo) => ipcRenderer.invoke('set-shortcut', keyInfo),
+  pauseShortcut: (paused) => ipcRenderer.send('pause-shortcut', paused),
+  exportReport: (kind) => ipcRenderer.invoke('export', kind),
 });

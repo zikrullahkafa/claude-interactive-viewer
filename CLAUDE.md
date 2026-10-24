@@ -27,7 +27,11 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   al gemeld is (`config.notified`). Verborgen wordt elke 5 min opgehaald als meldingen aan staan.
 - `lib/updates.js`: Windows via electron-updater, Mac via de GitHub-API (melding + downloadpagina).
 - Instellingen: `SETTERS` in `main.js` + scherm `data-view="settings"` in de renderer; het
-  systeemvakmenu biedt dezelfde opties.
+  systeemvakmenu biedt dezelfde opties. Sneltoets: `config.shortcut` (Electron-accelerator of
+  `'none'`), opnemen in de renderer, omzetten in `lib/shortcut.js`. Stille uren: `config.quietHours`
+  (`lib/alerts.js` `inQuietHours`); tijdens stille uren wordt niets als gemeld onthouden.
+- `lib/report.js`: export van de laatste 4 weken; CSV met `;` en decimale komma (Nederlandse Excel),
+  PDF via een verborgen venster en `printToPDF`.
 - `scripts/hook.js` (SessionStart-hook), `scripts/shortcut.js` (bureaubladiconen .lnk / .app).
 
 ## Wat we hebben ontdekt (oktober 2026)

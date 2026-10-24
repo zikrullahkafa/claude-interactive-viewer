@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
@@ -9,6 +9,8 @@ const { createHistory, productUsage, patterns } = require('./lib/history');
 const { createUpdater } = require('./lib/updates');
 const alerts = require('./lib/alerts');
 const hook = require('./scripts/hook');
+const { toAccelerator, displayAccelerator, DEFAULT_SHORTCUT } = require('./lib/shortcut');
+const report = require('./lib/report');
 
 const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
@@ -23,7 +25,6 @@ const pill = () => {
 const SNAP_PX = 40; // dichter bij de rand dan dit: vastklikken
 const PANEL_WIDTH = 340;
 const MARGIN = 16;
-const SHORTCUT = 'CommandOrControl+Alt+U';
 
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -74,7 +75,8 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, pillSize: 'normal', ackNews: [], lastUsage: null,
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillSize: 'normal', ackNews: [],
+  shortcut: DEFAULT_SHORTCUT, quietHours: { enabled: false, from: '22:00', to: '08:00' }, lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
 
@@ -82,21 +84,95 @@ const notificationsOn = () => Object.values({ ...alerts.DEFAULTS, ...config.noti
 
 function runAlerts(prev, curr) {
   if (DEMO || !Notification.isSupported()) return;
+  // Stille uren: niets tonen en niets als gemeld onthouden, zodat drempelmeldingen daarna alsnog komen.
+  if (alerts.inQuietHours(config.quietHours)) return;
   // Een bewaarde stand van uren geleden zegt niets over een reset van nu.
   const recent = prev && prev.fetchedAt && Date.now() - new Date(prev.fetchedAt).getTime() < 20 * 60 * 1000;
   const list = alerts.evaluate(recent ? prev : null, curr, config.notify, config.notified);
   if (!list.length) return;
   for (const a of list) {
     config.notified[a.key] = Date.now();
-    const n = new Notification({ title: a.title, body: a.body, icon: path.join(__dirname, 'assets', 'icon.png'), silent: false });
-    n.on('click', () => {
-      showWidget();
-      if (win) win.webContents.send('open-panel');
-    });
-    n.show();
+    showNotification(a.title, a.body);
   }
   config.notified = alerts.pruneSent(config.notified);
   saveConfig();
+}
+
+function showNotification(title, body) {
+  const n = new Notification({ title, body, icon: path.join(__dirname, 'assets', 'icon.png'), silent: false });
+  n.on('click', () => {
+    showWidget();
+    if (win) win.webContents.send('open-panel');
+  });
+  n.show();
+}
+
+// ---------- sneltoets ----------
+
+const shortcutLabel = () => displayAccelerator(config.shortcut, process.platform);
+
+// Registreert de sneltoets; lukt het niet (bezet door een ander programma), dan false.
+function registerShortcut(acc) {
+  globalShortcut.unregisterAll();
+  if (!acc || acc === 'none') return true;
+  try {
+    return globalShortcut.register(acc, toggleWidget);
+  } catch {
+    return false;
+  }
+}
+
+function setShortcut(acc) {
+  const old = config.shortcut;
+  if (!registerShortcut(acc)) {
+    registerShortcut(old);
+    return { error: 'Deze combinatie is al in gebruik door een ander programma. Kies een andere.' };
+  }
+  config.shortcut = acc;
+  saveConfig();
+  updateTrayMenu();
+  return { ok: true };
+}
+
+// ---------- exporteren ----------
+
+async function exportReport(kind) {
+  const now = Date.now();
+  const since = (() => {
+    const d = new Date(now - 27 * 86400e3);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  })();
+  const points = DEMO ? demoHistory(since - 86400e3) : history().read(since - 86400e3);
+  const local = await projectUsage(since, { bucket: 'day' });
+  const folders = (await projectUsage(now - 30 * 86400e3)).projects;
+  const days = report.buildDays(points, since, now, local.timeline);
+  const weeks = report.buildWeeks(points, days, lastUsage && lastUsage.sevenDay ? lastUsage.sevenDay.resetsAt : null, now, 4);
+  const stamp = new Date().toISOString().slice(0, 10);
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: kind === 'pdf' ? 'Overzicht opslaan als PDF' : 'Gegevens opslaan als CSV',
+    defaultPath: path.join(app.getPath('documents'), `Claude-Meter-${kind === 'pdf' ? 'overzicht' : 'gegevens'}-${stamp}.${kind}`),
+    filters: kind === 'pdf' ? [{ name: 'PDF', extensions: ['pdf'] }] : [{ name: 'CSV (Excel)', extensions: ['csv'] }],
+  });
+  if (canceled || !filePath) return { canceled: true };
+  if (kind === 'csv') {
+    fs.writeFileSync(filePath, report.toCsv(days), 'utf8');
+  } else {
+    const html = report.toHtml({
+      days, weeks, folders, plan: lastUsage && lastUsage.plan, generatedAt: new Date(),
+      firstMeasurement: points.length ? points[0].t : null,
+    });
+    const pdfWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
+    try {
+      await pdfWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      const pdf = await pdfWin.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+      fs.writeFileSync(filePath, pdf);
+    } finally {
+      pdfWin.destroy();
+    }
+  }
+  shell.showItemInFolder(filePath);
+  return { ok: true, path: filePath };
 }
 
 const NOTIFY_LABELS = [
@@ -418,7 +494,11 @@ function updateTrayMenu() {
     Menu.buildFromTemplate([
       { label: trayLabel(), enabled: false },
       { type: 'separator' },
-      { label: visible ? 'Widget verbergen' : 'Widget tonen', accelerator: SHORTCUT, click: toggleWidget },
+      {
+        label: visible ? 'Widget verbergen' : 'Widget tonen',
+        ...(config.shortcut && config.shortcut !== 'none' ? { accelerator: config.shortcut, registerAccelerator: false } : {}),
+        click: toggleWidget,
+      },
       { label: 'Nu verversen', click: () => refresh(true) },
       ...(updateState
         ? [{
@@ -515,7 +595,7 @@ ipcMain.on('ack-news', (_e, keys) => {
   broadcast();
 });
 ipcMain.handle('get-state', () => ({
-  usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme, ackNews: config.ackNews,
+  usage: lastUsage, error: lastError, demo: DEMO, shortcut: shortcutLabel(), theme: config.theme, ackNews: config.ackNews,
   pillScale: PILL_SCALES[config.pillSize] || 1,
   update: updateState, version: app.getVersion(),
 }));
@@ -539,6 +619,10 @@ function settingsSnapshot() {
     version: app.getVersion(),
     packaged: app.isPackaged,
     update: updateState,
+    shortcut: config.shortcut,
+    shortcutLabel: shortcutLabel(),
+    quietHours: { enabled: false, from: '22:00', to: '08:00', ...config.quietHours },
+    notificationsSupported: Notification.isSupported(),
   };
 }
 
@@ -553,6 +637,17 @@ const SETTERS = {
   hook: (v) => setHookEnabled(!!v),
   openClaude: (v) => {
     config.openClaude = !!v;
+    saveConfig();
+  },
+  quietHours: (v) => {
+    if (!v || typeof v !== 'object') return;
+    const time = (s, def) => (/^\d{1,2}:\d{2}$/.test(String(s)) ? String(s) : def);
+    const cur = { enabled: false, from: '22:00', to: '08:00', ...config.quietHours };
+    config.quietHours = {
+      enabled: 'enabled' in v ? !!v.enabled : cur.enabled,
+      from: 'from' in v ? time(v.from, cur.from) : cur.from,
+      to: 'to' in v ? time(v.to, cur.to) : cur.to,
+    };
     saveConfig();
   },
   notify: (v) => {
@@ -570,6 +665,28 @@ ipcMain.handle('set-setting', (_e, key, value) => {
   return settingsSnapshot();
 });
 ipcMain.on('check-update', () => updater && updater.check());
+ipcMain.handle('test-notification', () => {
+  if (!Notification.isSupported()) return { supported: false };
+  showNotification('Testmelding van Claude Meter', 'Zo zien meldingen eruit. Klik erop om de widget te openen.');
+  return { supported: true };
+});
+ipcMain.handle('set-shortcut', (_e, keyInfo) => {
+  if (keyInfo === 'none' || keyInfo === 'default') {
+    return { ...setShortcut(keyInfo === 'none' ? 'none' : DEFAULT_SHORTCUT), settings: settingsSnapshot() };
+  }
+  const { accelerator, error } = toAccelerator(keyInfo, process.platform);
+  if (error) return { error, settings: settingsSnapshot() };
+  return { ...setShortcut(accelerator), settings: settingsSnapshot() };
+});
+// Tijdens het opnemen van een nieuwe combinatie de huidige even uitzetten, anders vangt die de toetsen.
+ipcMain.on('pause-shortcut', (_e, paused) => registerShortcut(paused ? 'none' : config.shortcut));
+ipcMain.handle('export', async (_e, kind) => {
+  try {
+    return await exportReport(kind === 'pdf' ? 'pdf' : 'csv');
+  } catch (err) {
+    return { error: `Exporteren mislukt: ${err.message}` };
+  }
+});
 ipcMain.on('open-raw', () => !DEMO && shell.openPath(rawFile()));
 ipcMain.on('open-logcheck', () => openLogCheck());
 ipcMain.handle('projects', (_e, sinceMs, bucket) => {
@@ -699,6 +816,6 @@ if (IS_PRIMARY) app.whenReady().then(() => {
   openClaudeApp(process.argv);
   createTray();
   createWindow();
-  globalShortcut.register(SHORTCUT, toggleWidget);
+  if (!registerShortcut(config.shortcut)) registerShortcut(DEFAULT_SHORTCUT);
   refresh(false);
 });
