@@ -14,7 +14,11 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   `local-agent-mode-sessions`) en telt per map, gewogen met `lib/pricing.js` (API-prijzen per model).
 - `main.js`: venster (pil ↔ paneel), systeemvak/menubalk, sneltoets Ctrl/⌘+Alt+U, thema, polling
   (alleen zolang zichtbaar, elke 3 min; 10 min na een 429).
-- `renderer/`: interface. Tabbladen Limieten, Mappen (alleen als er 30 dagen lokale data is), Tips.
+- `renderer/`: interface. Tabbladen Limieten, Verloop (SVG-grafieken, zonder bibliotheek), Mappen
+  (alleen als er 30 dagen lokale data is), Tips. Grafiekkleuren: `--s1`..`--s4` + `--s-other`,
+  gevalideerd palet (dataviz-skill), aparte stappen voor licht en donker.
+- `lib/history.js`: het usage-endpoint geeft alleen de huidige stand; de widget slaat zelf metingen
+  op (`limietverloop.jsonl` in userData) voor de limietgrafiek. Geschiedenis begint dus pas bij installatie.
 - `scripts/hook.js` (SessionStart-hook), `scripts/shortcut.js` (bureaubladiconen .lnk / .app).
 
 ## Wat we hebben ontdekt (oktober 2026)

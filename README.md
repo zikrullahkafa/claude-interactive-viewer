@@ -13,6 +13,11 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   sessies, modellen en (na klikken) invoer, uitvoer, cache, denktokens en effort-level. Dit komt uit de sessielogboeken van Claude Code (`~/.claude/projects`) en van Cowork
   (`local-agent-mode-sessions` van de desktop-app, ook de Windows Store-locatie onder `Packages`), per map die je in Cowork koos. Gewone chats en cloudsessies staan niet op je
   computer en worden daarom niet per project getoond (ze tellen wel mee in de limieten).
+- **Tabblad Verloop:** grafieken over 24 uur, 7, 14 of 30 dagen. Bovenaan je weeklimiet door de
+  tijd (bij 24 uur ook de 5-uurslimiet), uit metingen die de widget zelf opslaat zolang hij openstaat
+  (`limietverloop.jsonl`, maximaal 62 dagen). Daaronder het verbruik per dag of per uur, gestapeld
+  per map (in dollars API-waarde of in tokens), met een legenda met totalen. Beweeg over de grafiek
+  voor de precieze waarden.
 - **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
   cloudsessietegoed in dollars met vervaldatum.
 - **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies “Zoals Windows” in het
@@ -118,6 +123,7 @@ npm run demo
 | `lib/usage.js` | token lezen en vernieuwen, endpoint aanroepen, antwoord normaliseren |
 | `lib/projects.js` | verbruik per map uit de Claude Code- en Cowork-logboeken |
 | `lib/pricing.js` | API-prijzen per model, om verbruik te wegen |
+| `lib/history.js` | eigen metingen van de limieten opslaan voor de grafiek |
 | `renderer/` | de interface (pil en paneel) |
 | `bin/launch.js` | start de widget losgekoppeld; toont hem weer als hij al draait |
 | `scripts/hook.js` | hook in `~/.claude/settings.json` zetten of verwijderen |

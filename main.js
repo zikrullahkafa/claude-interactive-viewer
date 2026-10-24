@@ -5,6 +5,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
 const { projectUsage, describeLogs } = require('./lib/projects');
+const { createHistory } = require('./lib/history');
 
 const DEMO = process.argv.includes('--demo');
 const POLL_MS = 3 * 60 * 1000; // het endpoint is streng met rate limits
@@ -214,6 +215,23 @@ function resizePanel(height) {
 
 // ---------- gegevens ----------
 
+let historyStore = null;
+const history = () => (historyStore ||= createHistory(path.join(app.getPath('userData'), 'limietverloop.jsonl')));
+
+// Nepverloop voor de demomodus: weekpercentage dat oploopt en zondag terugvalt, 5 uur met pieken.
+function demoHistory(sinceMs) {
+  const out = [];
+  const now = Date.now();
+  for (let t = Math.max(sinceMs, now - 30 * 86400e3); t <= now; t += 20 * 60e3) {
+    const hourOfDay = new Date(t).getHours();
+    const awake = hourOfDay >= 8 && hourOfDay <= 23;
+    const week = ((t / 86400e3 + 3) % 7) / 7;
+    const f = awake ? Math.round(Math.abs(Math.sin(t / 5400e3)) * 70) : 0;
+    out.push({ t, f, w: Math.round(week * 85) });
+  }
+  return out;
+}
+
 function demoUsage() {
   const now = Date.now();
   const t = (now / 60000) % 100;
@@ -249,6 +267,7 @@ async function refresh(manual) {
     if (raw) fs.writeFile(rawFile(), JSON.stringify(raw, null, 2), () => {});
     config.lastUsage = lastUsage;
     saveConfig();
+    if (!DEMO) history().append(lastUsage);
   } catch (err) {
     lastError = { code: err.code || 'unknown', message: err.message };
     if (err.code === 'rate-limited') next = BACKOFF_MS;
@@ -323,9 +342,13 @@ function createTray() {
 ipcMain.handle('get-state', () => ({ usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme }));
 ipcMain.on('refresh', () => refresh(true));
 ipcMain.on('set-theme', (_e, theme) => applyTheme(theme));
-ipcMain.handle('projects', (_e, sinceMs) => {
+ipcMain.handle('projects', (_e, sinceMs, bucket) => {
   const min = Date.now() - 62 * 86400e3;
-  return projectUsage(Number.isFinite(sinceMs) && sinceMs > min ? sinceMs : Date.now() - 7 * 86400e3);
+  return projectUsage(Number.isFinite(sinceMs) && sinceMs > min ? sinceMs : Date.now() - 7 * 86400e3, { bucket });
+});
+ipcMain.handle('history', (_e, sinceMs) => {
+  const since = Number.isFinite(sinceMs) ? sinceMs : Date.now() - 7 * 86400e3;
+  return DEMO ? demoHistory(since) : history().read(since);
 });
 ipcMain.on('expand', (_e, height) => setExpanded(true, height));
 ipcMain.on('collapse', () => setExpanded(false));
