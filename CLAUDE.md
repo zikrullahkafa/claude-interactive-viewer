@@ -14,7 +14,8 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   `local-agent-mode-sessions`) en telt per map, gewogen met `lib/pricing.js` (API-prijzen per model).
 - `main.js`: venster (pil ↔ paneel), systeemvak/menubalk, sneltoets Ctrl/⌘+Alt+U, thema, polling
   (zichtbaar elke 3 min, verborgen elke 5 min als meldingen aan staan; 10 min na een 429). Nooit twee
-  verzoeken tegelijk (`inFlight`), anders vernieuwen ze allebei het token. Startvlaggen:
+  verzoeken tegelijk (`inFlight`), anders vernieuwen ze allebei het token. Verborgen wordt ook
+  opgehaald als de stand in systeemvak/menubalk aan staat. Startvlaggen:
   `--launch` (hook: los starten), `--remove-hook` (Windows-verwijderprogramma, `build/installer.nsh`),
   `--demo`. macOS stuurt bij opnieuw aanklikken `activate` in plaats van `second-instance`.
   Formaat: `config.pillScale` (0,7–2), `config.panelScale` (0,8–1,6) en `config.panelHeight`
@@ -31,8 +32,15 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   het verbruik per product en de patronen. Geschiedenis begint dus pas bij installatie.
 - `lib/alerts.js`: regels voor meldingen (pure functie, getest); `main.js` toont ze en onthoudt wat
   al gemeld is (`config.notified`). Verborgen wordt elke 5 min opgehaald als meldingen aan staan.
-- `lib/updates.js`: Windows via electron-updater, Mac via de GitHub-API (melding + downloadpagina).
+- `lib/updates.js`: Windows via electron-updater. Mac via `lib/macupdate.js` (Squirrel.Mac kan
+  niet zonder echte ondertekening): dmg uit de release downloaden, sha512 uit `latest-mac.yml`
+  controleren, met `hdiutil`/`ditto` uitpakken en versie nakijken (`defaults read`); na klikken
+  wisselt een los shellscript de app om (oude terug bij een fout) en start hem met `open`. Kan de
+  app zichzelf niet vervangen (niet schrijfbaar, AppTranslocation), dan downloadpagina.
   Alleen bij opstarten (na 15 s) en via *Controleren* in de instellingen; geen periodieke controle.
+- `lib/trayicon.js`: stand buiten de widget (`config.trayStatus`: both/fiveHour/sevenDay/off).
+  macOS: `tray.setTitle` in de menubalk; Windows/Linux: ringicoon als PNG (eigen encoder, geen
+  pakketten) op 16–32 px. Staat het aan, dan wordt ook verborgen elke 5 min opgehaald.
 - Instellingen: `SETTERS` in `main.js` + scherm `data-view="settings"` in de renderer; het
   systeemvakmenu biedt dezelfde opties. Sneltoets: `config.shortcut` (Electron-accelerator of
   `'none'`), opnemen in de renderer, omzetten in `lib/shortcut.js`. Stille uren: `config.quietHours`
@@ -68,8 +76,8 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
 
 `package.json` → `version` verhogen, op `main` zetten, dan workflow *Release* (handmatig of tag `v*`).
 electron-builder bouwt NSIS (Windows, werkt zichzelf bij via electron-updater) en een universele
-dmg (Mac, ad-hoc ondertekend; kan zichzelf niet vervangen, de app meldt nieuwe versies en opent de
-releasepagina). Eerste start van de geïnstalleerde app zet de Claude Code-hook aan
+dmg (Mac, ad-hoc ondertekend; werkt zichzelf bij via `lib/macupdate.js`, dus de dmg-naam en
+`latest-mac.yml` moeten in elke release zitten). Eerste start van de geïnstalleerde app zet de Claude Code-hook aan
 (`<exe> --launch --claude-usage-widget`); `--launch` start de app los en stopt meteen.
 
 ## Testen
