@@ -133,7 +133,16 @@
 
       <section class="chart-card">
         <div class="chart-head">
-          <span class="chart-title" id="usage-title">Verbruik per dag</span>
+          <span class="chart-title" id="products-title">Per product, per dag</span>
+          <span class="chart-unit">% van je weeklimiet</span>
+        </div>
+        <div class="chart" id="chart-products"></div>
+        <ul class="series-list" id="products-legend"></ul>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title" id="usage-title">Per map, per dag</span>
           <span class="seg" role="group" aria-label="Eenheid">
             <button class="metric active" data-metric="cost">$</button>
             <button class="metric" data-metric="tokens">Tokens</button>

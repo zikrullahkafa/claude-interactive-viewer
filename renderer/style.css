@@ -122,7 +122,12 @@ b { font-weight: 650; }
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   animation: pop 0.22s cubic-bezier(.2,.8,.2,1);
+  max-height: calc(100vh - 16px); /* het venster is nooit hoger dan het scherm: dan scrollt het paneel */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+.panel::-webkit-scrollbar { width: 6px; }
+.panel::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
 
 .panel-head { display: flex; align-items: center; justify-content: space-between; cursor: grab; }
@@ -258,6 +263,7 @@ b { font-weight: 650; }
 .chart-title { font-weight: 650; font-size: 12.5px; }
 .chart-legend { display: flex; gap: 10px; font-size: 11px; color: var(--text-2); }
 .chart-legend span[hidden] { display: none; }
+.chart-unit { font-size: 11px; color: var(--muted); }
 .chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .key { display: inline-block; flex: none; }
 .key-line { width: 12px; height: 2px; border-radius: 1px; }

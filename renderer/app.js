@@ -533,12 +533,9 @@ function drawLimits(points, sinceMs) {
 }
 
 // Grafiek 2: verbruik per dag (of per uur bij 24 uur), gestapeld per map.
-function drawUsage(timeline) {
-  const box = $('#chart-usage');
-  const { starts, series, bucket } = timeline;
-  const val = (v) => (trendMetric === 'cost' ? v.cost : v.tokens);
-  const fmtVal = (n) => (trendMetric === 'cost' ? money(n) : formatTokens(n));
-  const totals = starts.map((_, i) => series.reduce((a, s) => a + val(s.values[i]), 0));
+// Gestapelde staven per tijdsbakje; gedeeld door "verbruik per map" en "verbruik per product".
+function drawStacked(box, { starts, bucket, series, fmt, emptyText }) {
+  const totals = starts.map((_, i) => series.reduce((a, s) => a + s.values[i], 0));
   const max = Math.max(...totals, 0);
   const step = bucket === 'hour' ? 3600e3 : 86400e3;
   const end = starts[starts.length - 1] + step;
@@ -549,14 +546,10 @@ function drawUsage(timeline) {
   };
   const yMax = nice(max);
   const f = chartFrame(box, {
-    yMax, yTicks: [0, yMax / 2, yMax], yFormat: (v) => (v === 0 ? '0' : fmtVal(v)),
+    yMax, yTicks: [0, yMax / 2, yMax], yFormat: (v) => (v === 0 ? '0' : fmt(v)),
     xStart: starts[0], xEnd: end, xLabels: timeLabels(starts[0], starts[starts.length - 1] + step / 2).map((l, i) => (i === 0 ? [starts[0] + step / 2, l[1], 'start'] : l)),
   });
-  $('#usage-title').textContent = bucket === 'hour' ? 'Verbruik per uur' : 'Verbruik per dag';
-  if (max <= 0) {
-    box.append(el('div', 'chart-empty', 'Geen Claude Code- of Cowork-sessies op deze computer in deze periode.'));
-  }
-  const colors = series.map((s, i) => (s.other ? css('--s-other') : css(SERIES_VARS[i])));
+  if (max <= 0) box.append(el('div', 'chart-empty', emptyText));
   const slot = (f.W - f.pad.l - f.pad.r) / starts.length;
   const barW = Math.min(24, Math.max(2, slot - 2));
   starts.forEach((t, i) => {
@@ -565,13 +558,13 @@ function drawUsage(timeline) {
     const hover = svgEl('rect', { x: cx - slot / 2, y: f.pad.t, width: slot, height: f.H - f.pad.t - f.pad.b, visibility: 'hidden' }, 'bar-hover');
     g.append(hover);
     let acc = 0;
-    const segs = series.map((s, si) => ({ v: val(s.values[i]), si })).filter((s) => s.v > 0);
+    const segs = series.map((sr, si) => ({ v: sr.values[i], si })).filter((x) => x.v > 0);
     segs.forEach(({ v, si }, k) => {
       const y0 = f.y(acc);
       const y1 = f.y(acc + v);
       acc += v;
       const h = Math.max(1, y0 - y1 - (k < segs.length - 1 ? 2 : 0)); // 2px naad tussen segmenten
-      g.append(svgEl('rect', { x: cx - barW / 2, y: y0 - h, width: barW, height: h, rx: k === segs.length - 1 ? Math.min(2, barW / 3) : 0, fill: colors[si] }));
+      g.append(svgEl('rect', { x: cx - barW / 2, y: y0 - h, width: barW, height: h, rx: k === segs.length - 1 ? Math.min(2, barW / 3) : 0, fill: series[si].color }));
     });
     const hit = svgEl('rect', { x: cx - slot / 2, y: 0, width: slot, height: f.H }, 'hit');
     g.append(hit);
@@ -580,9 +573,9 @@ function drawUsage(timeline) {
       const label = bucket === 'hour'
         ? `${dateShortFmt.format(t)} · ${hourFmt.format(t)}–${hourFmt.format(t + step)}`
         : weekdayFmt.format(t);
-      const rows = segs.slice().reverse().map(({ v, si }) => [colors[si], series[si].name, fmtVal(v)]);
+      const rows = segs.slice().reverse().map(({ v, si }) => [series[si].color, series[si].name, fmt(v)]);
       if (!rows.length) rows.push([css('--s-other'), 'Geen verbruik', '–']);
-      else rows.push(['transparent', 'Totaal', fmtVal(totals[i])]);
+      else if (rows.length > 1) rows.push(['transparent', 'Totaal', fmt(totals[i])]);
       showTooltip(box, (cx / f.W) * box.clientWidth, (f.y(totals[i]) / f.H) * box.clientHeight, label, rows);
     });
     hit.addEventListener('pointerleave', () => {
@@ -591,25 +584,67 @@ function drawUsage(timeline) {
     });
     f.svg.append(g);
   });
+}
 
-  // Legenda met totaal per map: ook leesbaar zonder kleur.
-  const legend = $('#usage-legend');
-  legend.replaceChildren(
-    ...series.map((s, si) => {
+// Legenda met totaal per reeks: ook leesbaar zonder kleur.
+function renderLegend(ul, series, fmt) {
+  ul.replaceChildren(
+    ...series.map((sr) => {
       const li = el('li');
       const key = el('i', 'key key-box');
-      key.style.background = colors[si];
-      const sum = s.values.reduce((a, v) => a + val(v), 0);
-      li.title = s.path || s.name;
-      li.append(key, el('span', null, s.source ? `${s.name} · ${s.source}` : s.name), el('b', null, fmtVal(sum)));
+      key.style.background = sr.color;
+      li.title = sr.title || sr.name;
+      li.append(key, el('span', null, sr.label || sr.name), el('b', null, fmt(sr.values.reduce((a, v) => a + v, 0))));
       return li;
     })
   );
+}
+
+// Verbruik per map (lokale logboeken).
+function drawUsage(timeline) {
+  const { starts, series, bucket } = timeline;
+  const fmt = (n) => (trendMetric === 'cost' ? money(n) : formatTokens(n));
+  const mapped = series.map((sr, i) => ({
+    name: sr.name,
+    label: sr.source ? `${sr.name} · ${sr.source}` : sr.name,
+    title: sr.path || sr.name,
+    color: sr.other ? css('--s-other') : css(SERIES_VARS[i]),
+    values: sr.values.map((v) => (trendMetric === 'cost' ? v.cost : v.tokens)),
+  }));
+  $('#usage-title').textContent = bucket === 'hour' ? 'Per map, per uur' : 'Per map, per dag';
+  drawStacked($('#chart-usage'), { starts, bucket, series: mapped, fmt, emptyText: 'Geen Claude Code- of Cowork-sessies op deze computer in deze periode.' });
+  renderLegend($('#usage-legend'), mapped, fmt);
   const products = state.usage && state.usage.products ? state.usage.products.rows : [];
   const notLocal = products.filter((r) => r.percent > 0 && r.key !== 'claude_code').map((r) => `${r.name} ${r.percent}%`);
   $('#usage-note').textContent =
     'Alleen Claude Code en Cowork op deze computer' +
     (notLocal.length ? `; ${notLocal.join(', ')} van je week staat er niet in.` : '.');
+}
+
+// Verbruik per product (Chats, Cowork, Claude Code) in procent van de weeklimiet, uit eigen metingen.
+const PRODUCT_ORDER = ['chat', 'cowork', 'claude_code', 'other'];
+const PRODUCT_NAMES = { chat: 'Chats', cowork: 'Cowork', claude_code: 'Claude Code', other: 'Overig' };
+
+function drawProducts(data) {
+  const { starts, bucket, series } = data;
+  const sorted = series.slice().sort((a, b) => PRODUCT_ORDER.indexOf(a.key) - PRODUCT_ORDER.indexOf(b.key));
+  const mapped = sorted
+    .filter((sr) => sr.values.some((v) => v > 0))
+    .map((sr) => {
+      const slot = PRODUCT_ORDER.indexOf(sr.key);
+      return {
+        name: PRODUCT_NAMES[sr.key] || sr.key,
+        color: sr.key === 'other' || slot < 0 ? css('--s-other') : css(SERIES_VARS[slot]),
+        values: sr.values,
+      };
+    });
+  const fmt = (n) => `${n.toLocaleString('nl-NL', { maximumFractionDigits: n < 10 ? 1 : 0 })}%`;
+  $('#products-title').textContent = bucket === 'hour' ? 'Per product, per uur' : 'Per product, per dag';
+  drawStacked($('#chart-products'), {
+    starts, bucket, series: mapped, fmt,
+    emptyText: 'Nog te weinig metingen. De widget houdt dit bij zolang hij draait; dit vult zich vanzelf.',
+  });
+  renderLegend($('#products-legend'), mapped, fmt);
 }
 
 async function loadTrend() {
@@ -621,11 +656,14 @@ async function loadTrend() {
     return d.getTime();
   })();
   try {
-    const [points, usage] = await Promise.all([
+    const bucket = trendDays === 1 ? 'hour' : 'day';
+    const [points, usage, products] = await Promise.all([
       window.widget.history(since),
-      window.widget.projects(since, trendDays === 1 ? 'hour' : 'day'),
+      window.widget.projects(since, bucket),
+      window.widget.productUsage(since, bucket),
     ]);
     drawLimits(points, since);
+    drawProducts(products);
     lastTimeline = usage.timeline;
     drawUsage(lastTimeline);
   } catch {
@@ -672,7 +710,8 @@ for (const b of $$('.period')) {
 
 // ---------- in- en uitklappen ----------
 
-const panelHeight = () => panel.offsetHeight + 16; // + body-padding
+// Gewenste hoogte = volledige inhoud (scrollHeight), ook als het paneel al op schermhoogte is begrensd.
+const panelHeight = () => panel.scrollHeight + 2 + 16; // + rand + body-padding
 
 // Mappen alleen tonen als er de afgelopen 30 dagen lokale Code- of Cowork-sessies zijn.
 async function updateMappenTab() {
@@ -702,9 +741,11 @@ function collapse() {
   window.widget.collapse();
 }
 
-new ResizeObserver(() => {
+const sizeWatcher = new ResizeObserver(() => {
   if (isExpanded) window.widget.resize(panelHeight());
-}).observe(panel);
+});
+sizeWatcher.observe(panel);
+for (const child of panel.children) sizeWatcher.observe(child); // inhoud kan groeien terwijl het paneel begrensd is
 
 // ---------- slepen vs. klikken ----------
 
@@ -801,6 +842,7 @@ function renderUpdate(u) {
 }
 $('#update').addEventListener('click', () => window.widget.installUpdate());
 window.widget.onUpdate(renderUpdate);
+window.widget.onOpenPanel(() => expand()); // klik op een melding opent het paneel
 
 window.widget.getState().then((s) => {
   state = s;

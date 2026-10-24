@@ -1,12 +1,13 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
-const { projectUsage, describeLogs } = require('./lib/projects');
-const { createHistory } = require('./lib/history');
+const { projectUsage, describeLogs, bucketStarts } = require('./lib/projects');
+const { createHistory, productUsage } = require('./lib/history');
 const { createUpdater } = require('./lib/updates');
+const alerts = require('./lib/alerts');
 const hook = require('./scripts/hook');
 
 const DEMO = process.argv.includes('--demo');
@@ -55,7 +56,39 @@ let pollTimer = null;
 
 const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
-let config = { position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null, lastUsage: null };
+let config = {
+  position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
+  notify: { ...alerts.DEFAULTS }, notified: {}, lastUsage: null,
+};
+const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
+
+const notificationsOn = () => Object.values({ ...alerts.DEFAULTS, ...config.notify }).some(Boolean);
+
+function runAlerts(prev, curr) {
+  if (DEMO || !Notification.isSupported()) return;
+  const list = alerts.evaluate(prev, curr, config.notify, config.notified);
+  if (!list.length) return;
+  for (const a of list) {
+    config.notified[a.key] = Date.now();
+    const n = new Notification({ title: a.title, body: a.body, icon: path.join(__dirname, 'assets', 'icon.png'), silent: false });
+    n.on('click', () => {
+      showWidget();
+      if (win) win.webContents.send('open-panel');
+    });
+    n.show();
+  }
+  config.notified = alerts.pruneSent(config.notified);
+  saveConfig();
+}
+
+const NOTIFY_LABELS = [
+  ['fiveHour', '5-uurslimiet bij 80% en 90%'],
+  ['week', 'Weeklimiet bij 80% en 90%'],
+  ['pace', 'Weeklimiet raakt te snel op'],
+  ['reset', 'Limiet is gereset'],
+  ['news', 'Iets nieuws (bijv. gratis reset)'],
+  ['credit', 'Cloudtegoed verloopt bijna'],
+];
 let updater = null;
 let updateState = null;
 
@@ -239,7 +272,7 @@ function setExpanded(value, height) {
       right: pillPos.x + PILL.width / 2 > wa.x + wa.width / 2,
       bottom: pillPos.y + PILL.height / 2 > wa.y + wa.height / 2,
     };
-    const h = Math.max(PILL.height, Math.round(height || 320));
+    const h = Math.min(Math.max(PILL.height, Math.round(height || 320)), wa.height - 2 * MARGIN);
     const x = anchor.right ? pillPos.x + PILL.width - PANEL_WIDTH : pillPos.x;
     const y = anchor.bottom ? pillPos.y + PILL.height - h : pillPos.y;
     win.setBounds(clamp({ x, y, width: PANEL_WIDTH, height: h }));
@@ -260,7 +293,8 @@ function setExpanded(value, height) {
 function resizePanel(height) {
   if (!win || !expanded) return;
   const b = win.getBounds();
-  const h = Math.round(height);
+  const wa = workArea({ x: b.x, y: b.y });
+  const h = Math.min(Math.round(height), wa.height - 2 * MARGIN); // nooit hoger dan het scherm
   if (h === b.height) return;
   const y = anchor.bottom ? b.y + b.height - h : b.y;
   win.setBounds(clamp({ x: b.x, y, width: PANEL_WIDTH, height: h }));
@@ -280,7 +314,8 @@ function demoHistory(sinceMs) {
     const awake = hourOfDay >= 8 && hourOfDay <= 23;
     const week = ((t / 86400e3 + 3) % 7) / 7;
     const f = awake ? Math.round(Math.abs(Math.sin(t / 5400e3)) * 70) : 0;
-    out.push({ t, f, w: Math.round(week * 85) });
+    const chat = 10 + Math.round(Math.abs(Math.sin(t / 2e8)) * 20);
+    out.push({ t, f, w: Math.round(week * 85), p: { claude_code: 5, chat, cowork: 95 - chat, other: 0 } });
   }
   return out;
 }
@@ -314,7 +349,9 @@ async function refresh(manual) {
   let next = POLL_MS;
   try {
     const { raw, ...usage } = DEMO ? demoUsage() : await fetchUsage();
+    const prevUsage = lastUsage;
     lastUsage = usage;
+    runAlerts(prevUsage, usage);
     lastError = null;
     // Ruw antwoord bewaren (bevat geen token): zo is te zien welke velden Anthropic meestuurt.
     if (raw) fs.writeFile(rawFile(), JSON.stringify(raw, null, 2), () => {});
@@ -328,9 +365,11 @@ async function refresh(manual) {
   }
   broadcast();
   // Alleen ophalen zolang de widget zichtbaar is; bij weer tonen wordt meteen ververst.
-  pollTimer = setTimeout(() => {
-    if (win && win.isVisible()) refresh(false);
-  }, next);
+  // Zichtbaar: elke 3 minuten. Verborgen: alleen voor meldingen, elke 5 minuten.
+  const visible = !!(win && win.isVisible());
+  if (visible || notificationsOn()) {
+    pollTimer = setTimeout(() => refresh(false), visible ? next : Math.max(next, HIDDEN_POLL_MS));
+  }
 }
 
 // ---------- systeemvak ----------
@@ -367,6 +406,18 @@ function updateTrayMenu() {
         visible: hook.claudeCodeInstalled(),
         checked: hook.hookStatus(),
         click: (item) => setHookEnabled(item.checked),
+      },
+      {
+        label: 'Meldingen',
+        submenu: NOTIFY_LABELS.map(([key, label]) => ({
+          label,
+          type: 'checkbox',
+          checked: { ...alerts.DEFAULTS, ...config.notify }[key],
+          click: (item) => {
+            config.notify = { ...alerts.DEFAULTS, ...config.notify, [key]: item.checked };
+            saveConfig();
+          },
+        })),
       },
       {
         label: 'Claude-app meeopenen',
@@ -432,6 +483,14 @@ ipcMain.handle('projects', (_e, sinceMs, bucket) => {
   const min = Date.now() - 62 * 86400e3;
   return projectUsage(Number.isFinite(sinceMs) && sinceMs > min ? sinceMs : Date.now() - 7 * 86400e3, { bucket });
 });
+ipcMain.handle('product-usage', (_e, sinceMs, bucket) => {
+  const since = Number.isFinite(sinceMs) ? sinceMs : Date.now() - 7 * 86400e3;
+  const b = bucket === 'hour' ? 'hour' : 'day';
+  const starts = bucketStarts(since, b);
+  // Eén meting van vóór de periode erbij, zodat het eerste verschil klopt.
+  const points = DEMO ? demoHistory(since - 86400e3) : history().read(since - 86400e3);
+  return { starts, bucket: b, series: productUsage(points, starts, b === 'hour' ? 3600e3 : 86400e3) };
+});
 ipcMain.handle('history', (_e, sinceMs) => {
   const since = Number.isFinite(sinceMs) ? sinceMs : Date.now() - 7 * 86400e3;
   return DEMO ? demoHistory(since) : history().read(since);
@@ -486,6 +545,8 @@ app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
+  // Windows toont meldingen alleen met een AppUserModelId (gelijk aan de appId van de installatie).
+  if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? 'nl.zikrullahkafa.claudemeter' : process.execPath);
   loadConfig();
   lastUsage = config.lastUsage; // direct iets tonen; verversen volgt
   removeLegacyLoginItem();

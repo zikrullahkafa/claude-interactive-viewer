@@ -16,8 +16,13 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Tabblad Verloop:** grafieken over 24 uur, 7, 14 of 30 dagen. Bovenaan je weeklimiet door de
   tijd (bij 24 uur ook de 5-uurslimiet), uit metingen die de widget zelf opslaat zolang hij openstaat
   (`limietverloop.jsonl`, maximaal 62 dagen). Daaronder het verbruik per dag of per uur, gestapeld
-  per map (in dollars API-waarde of in tokens), met een legenda met totalen. Beweeg over de grafiek
+  per map (in dollars API-waarde of in tokens), met een legenda met totalen. Daartussen het verbruik per
+  product (Chats, Cowork, Claude Code) in procent van je weeklimiet, ook uit de eigen metingen. Beweeg over de grafiek
   voor de precieze waarden.
+- **Meldingen** (Windows/Mac): bij 80% en 90% van je 5-uurs- of weeklimiet, als je week te snel
+  opraakt, na een reset, bij iets nieuws in je account (zoals een gratis reset) en als je cloudtegoed
+  bijna verloopt. Per soort aan of uit via het menu → *Meldingen*. Verborgen kijkt de widget elke
+  5 minuten (anders elke 3).
 - **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
   cloudsessietegoed in dollars met vervaldatum.
 - **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies “Zoals Windows” in het
@@ -85,8 +90,8 @@ en Mac-versie en publiceert ze.
 
 In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.
 
-De widget start nooit vanzelf met Windows; hij draait alleen als jij hem opent (icoon, Claude Code)
-en haalt alleen gegevens op zolang hij zichtbaar is.
+De widget start nooit vanzelf met Windows; hij draait alleen als jij hem opent (icoon, Claude Code).
+Verborgen haalt hij alleen gegevens op als er meldingen aan staan.
 
 Wil je niet meer dat hij meestart met Claude: `npm run uninstall-hook`.
 
