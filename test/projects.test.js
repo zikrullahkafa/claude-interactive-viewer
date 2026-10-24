@@ -132,3 +132,27 @@ test('Cowork: groepeert per gekozen map, slaat audit.jsonl over', async () => {
     delete process.env.CLAUDE_METER_COWORK_DIRS;
   }
 });
+
+test('tijdlijn per dag en per uur, met Overig na vier mappen', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'cuw-p-'));
+  process.env.CLAUDE_CONFIG_DIR = base;
+  const h = (n) => new Date(Date.now() - n * 3600e3).toISOString();
+  for (let i = 0; i < 6; i++) {
+    const dir = path.join(base, 'projects', `p${i}`);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 's.jsonl'), line({ cwd: `/werk/map${i}` }) + reply(`${i}a`, 'claude-sonnet-5-5', { output_tokens: 1000 * (6 - i) }, h(1)) + reply(`${i}b`, 'claude-sonnet-5-5', { output_tokens: 10 }, h(30)));
+  }
+  const day = await projectUsage(Date.now() - 2 * 86400e3);
+  assert.strictEqual(day.timeline.bucket, 'day');
+  assert.ok(day.timeline.starts.length >= 3 && day.timeline.starts.length <= 4);
+  assert.deepStrictEqual(day.timeline.series.map((s) => s.name), ['map0', 'map1', 'map2', 'map3', 'Overig (2)']);
+  const sum = (s) => s.values.reduce((a, v) => a + v.tokens, 0);
+  assert.strictEqual(sum(day.timeline.series[0]), 6010);
+  assert.strictEqual(sum(day.timeline.series[4]), 2000 + 1000 + 20);
+  assert.strictEqual(day.projects[0].timeline, undefined);
+
+  const hour = await projectUsage(Date.now() - 5 * 3600e3, { bucket: 'hour' });
+  assert.strictEqual(hour.timeline.bucket, 'hour');
+  assert.strictEqual(hour.timeline.starts.length, 6);
+  assert.strictEqual(sum(hour.timeline.series[0]), 6000); // het bericht van 30 uur geleden valt erbuiten
+});

@@ -387,6 +387,268 @@ async function loadTips() {
   $('#tips').replaceChildren(...buildTips(state.usage || {}, data));
 }
 
+// ---------- verloop (grafieken) ----------
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const SERIES_VARS = ['--s1', '--s2', '--s3', '--s4'];
+let trendDays = 7;
+let trendMetric = 'cost';
+let trendTimer = null;
+let lastTimeline = null;
+
+function svgEl(tag, attrs = {}, cls) {
+  const e = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (cls) e.setAttribute('class', cls);
+  return e;
+}
+
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const hourFmt = new Intl.DateTimeFormat('nl-NL', { hour: '2-digit', minute: '2-digit' });
+const dayShortFmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric' });
+const dateShortFmt = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' });
+const weekdayFmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+const tipFmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+// Gedeelde opbouw: plotvlak, horizontale hulplijnen met labels, tijdlabels onderaan.
+function chartFrame(box, { yMax, yTicks, yFormat, xStart, xEnd, xLabels }) {
+  box.replaceChildren();
+  const W = box.clientWidth || 296;
+  const H = box.clientHeight || 128;
+  const pad = { l: 30, r: 6, t: 6, b: 16 };
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  const x = (t) => pad.l + ((t - xStart) / Math.max(1, xEnd - xStart)) * (W - pad.l - pad.r);
+  const y = (v) => pad.t + (1 - v / yMax) * (H - pad.t - pad.b);
+  for (const v of yTicks) {
+    svg.append(svgEl('line', { x1: pad.l, x2: W - pad.r, y1: y(v), y2: y(v) }, 'gridline'));
+    const lbl = svgEl('text', { x: pad.l - 5, y: y(v) + 3, 'text-anchor': 'end' }, 'axis-label');
+    lbl.textContent = yFormat(v);
+    svg.append(lbl);
+  }
+  for (const [t, text, anchor] of xLabels) {
+    const lbl = svgEl('text', { x: x(t), y: H - 3, 'text-anchor': anchor || 'middle' }, 'axis-label');
+    lbl.textContent = text;
+    svg.append(lbl);
+  }
+  box.append(svg);
+  return { svg, W, H, pad, x, y };
+}
+
+function showTooltip(box, px, py, head, rows) {
+  let tip = $('.tooltip', box);
+  if (!tip) {
+    tip = el('div', 'tooltip');
+    box.append(tip);
+  }
+  tip.replaceChildren(el('div', 'tt-head', head));
+  for (const [color, label, value] of rows) {
+    const row = el('div', 'tt-row');
+    const key = el('i', 'key key-box');
+    key.style.background = color;
+    row.append(key, el('span', null, label), el('b', null, value));
+    tip.append(row);
+  }
+  tip.hidden = false;
+  const bw = box.clientWidth;
+  const tw = tip.offsetWidth;
+  tip.style.left = `${Math.min(Math.max(0, px + 10), bw - tw)}px`;
+  if (px + 10 + tw > bw) tip.style.left = `${Math.max(0, px - tw - 10)}px`;
+  tip.style.top = `${Math.max(0, py - 10)}px`;
+}
+
+const hideTooltip = (box) => {
+  const tip = $('.tooltip', box);
+  if (tip) tip.hidden = true;
+};
+
+function timeLabels(start, end, bucketHours) {
+  const span = end - start;
+  const fmt = span <= 1.5 * 86400e3 ? (t) => hourFmt.format(t) : span <= 8 * 86400e3 ? (t) => dayShortFmt.format(t) : (t) => dateShortFmt.format(t);
+  return [[start, fmt(start), 'start'], [start + span / 2, fmt(start + span / 2)], [end, fmt(end), 'end']];
+}
+
+// Grafiek 1: 5-uurs- en weeklimiet door de tijd, uit de eigen metingen van de widget.
+function drawLimits(points, sinceMs) {
+  const box = $('#chart-limits');
+  const now = Date.now();
+  const f = chartFrame(box, {
+    yMax: 100, yTicks: [0, 50, 100], yFormat: (v) => `${v}%`,
+    xStart: sinceMs, xEnd: now, xLabels: timeLabels(sinceMs, now),
+  });
+  const note = $('#limits-note');
+  // Over meerdere dagen is de 5-uurslijn een zaag zonder betekenis: dan alleen de week.
+  const showFive = now - sinceMs <= 1.5 * 86400e3;
+  $('#legend-5h').hidden = !showFive;
+  if (points.length < 2) {
+    box.append(el('div', 'chart-empty', 'Nog te weinig metingen. De widget houdt je limieten bij zolang hij openstaat; dit vult zich vanzelf.'));
+    note.textContent = '';
+    return;
+  }
+  // Lijn onderbreken waar de widget een tijd dicht was (geen metingen).
+  const gap = Math.max(2 * 3600e3, (now - sinceMs) / 40);
+  const keys = showFive ? [['w', css('--s2')], ['f', css('--s1')]] : [['w', css('--s2')]];
+  for (const [key, color] of keys) {
+    let d = '';
+    points.forEach((p, i) => {
+      const jump = i === 0 || p.t - points[i - 1].t > gap;
+      d += `${jump ? 'M' : 'L'}${f.x(p.t).toFixed(1)},${f.y(p[key]).toFixed(1)}`;
+    });
+    f.svg.append(svgEl('path', { d, stroke: color }, 'line'));
+  }
+  // Waarde aan het eind van elke lijn (geen getal op elk punt).
+  const lastP = points[points.length - 1];
+  const crosshair = svgEl('line', { y1: f.pad.t, y2: f.H - f.pad.b, visibility: 'hidden' }, 'crosshair');
+  const dotF = svgEl('circle', { r: 4, fill: css('--s1'), visibility: 'hidden' }, 'dot');
+  const dotW = svgEl('circle', { r: 4, fill: css('--s2'), visibility: 'hidden' }, 'dot');
+  const hit = svgEl('rect', { x: f.pad.l, y: 0, width: f.W - f.pad.l - f.pad.r, height: f.H }, 'hit');
+  f.svg.append(crosshair, dotW, dotF, hit);
+  const nearest = (t) => points.reduce((best, p) => (Math.abs(p.t - t) < Math.abs(best.t - t) ? p : best), points[0]);
+  hit.addEventListener('pointermove', (e) => {
+    const r = f.svg.getBoundingClientRect();
+    const sx = ((e.clientX - r.left) / r.width) * f.W;
+    const t = sinceMs + ((sx - f.pad.l) / (f.W - f.pad.l - f.pad.r)) * (now - sinceMs);
+    const p = nearest(t);
+    const px = f.x(p.t);
+    for (const [elm, key] of showFive ? [[dotF, 'f'], [dotW, 'w']] : [[dotW, 'w']]) {
+      elm.setAttribute('cx', px);
+      elm.setAttribute('cy', f.y(p[key]));
+      elm.setAttribute('visibility', 'visible');
+    }
+    crosshair.setAttribute('x1', px);
+    crosshair.setAttribute('x2', px);
+    crosshair.setAttribute('visibility', 'visible');
+    const rows = [[css('--s2'), 'Week', `${Math.round(p.w)}%`]];
+    if (showFive) rows.unshift([css('--s1'), '5 uur', `${Math.round(p.f)}%`]);
+    showTooltip(box, (px / f.W) * box.clientWidth, (f.y(showFive ? Math.max(p.f, p.w) : p.w) / f.H) * box.clientHeight, tipFmt.format(p.t), rows);
+  });
+  hit.addEventListener('pointerleave', () => {
+    for (const elm of [dotF, dotW, crosshair]) elm.setAttribute('visibility', 'hidden');
+    hideTooltip(box);
+  });
+  const first = points[0].t;
+  note.textContent =
+    (first > sinceMs + 3600e3 ? `Bijgehouden sinds ${tipFmt.format(first)}. ` : '') +
+    `Nu: 5 uur ${Math.round(lastP.f)}%, week ${Math.round(lastP.w)}%.` +
+    (showFive ? '' : ' De 5-uurslimiet zie je bij 24 uur.');
+}
+
+// Grafiek 2: verbruik per dag (of per uur bij 24 uur), gestapeld per map.
+function drawUsage(timeline) {
+  const box = $('#chart-usage');
+  const { starts, series, bucket } = timeline;
+  const val = (v) => (trendMetric === 'cost' ? v.cost : v.tokens);
+  const fmtVal = (n) => (trendMetric === 'cost' ? money(n) : formatTokens(n));
+  const totals = starts.map((_, i) => series.reduce((a, s) => a + val(s.values[i]), 0));
+  const max = Math.max(...totals, 0);
+  const step = bucket === 'hour' ? 3600e3 : 86400e3;
+  const end = starts[starts.length - 1] + step;
+  const nice = (m) => {
+    if (m <= 0) return 1;
+    const p = 10 ** Math.floor(Math.log10(m));
+    return [1, 2, 2.5, 5, 10].map((k) => k * p).find((v) => v >= m);
+  };
+  const yMax = nice(max);
+  const f = chartFrame(box, {
+    yMax, yTicks: [0, yMax / 2, yMax], yFormat: (v) => (v === 0 ? '0' : fmtVal(v)),
+    xStart: starts[0], xEnd: end, xLabels: timeLabels(starts[0], starts[starts.length - 1] + step / 2).map((l, i) => (i === 0 ? [starts[0] + step / 2, l[1], 'start'] : l)),
+  });
+  $('#usage-title').textContent = bucket === 'hour' ? 'Verbruik per uur' : 'Verbruik per dag';
+  if (max <= 0) {
+    box.append(el('div', 'chart-empty', 'Geen Claude Code- of Cowork-sessies op deze computer in deze periode.'));
+  }
+  const colors = series.map((s, i) => (s.other ? css('--s-other') : css(SERIES_VARS[i])));
+  const slot = (f.W - f.pad.l - f.pad.r) / starts.length;
+  const barW = Math.min(24, Math.max(2, slot - 2));
+  starts.forEach((t, i) => {
+    const cx = f.x(t + step / 2);
+    const g = svgEl('g');
+    const hover = svgEl('rect', { x: cx - slot / 2, y: f.pad.t, width: slot, height: f.H - f.pad.t - f.pad.b, visibility: 'hidden' }, 'bar-hover');
+    g.append(hover);
+    let acc = 0;
+    const segs = series.map((s, si) => ({ v: val(s.values[i]), si })).filter((s) => s.v > 0);
+    segs.forEach(({ v, si }, k) => {
+      const y0 = f.y(acc);
+      const y1 = f.y(acc + v);
+      acc += v;
+      const h = Math.max(1, y0 - y1 - (k < segs.length - 1 ? 2 : 0)); // 2px naad tussen segmenten
+      g.append(svgEl('rect', { x: cx - barW / 2, y: y0 - h, width: barW, height: h, rx: k === segs.length - 1 ? Math.min(2, barW / 3) : 0, fill: colors[si] }));
+    });
+    const hit = svgEl('rect', { x: cx - slot / 2, y: 0, width: slot, height: f.H }, 'hit');
+    g.append(hit);
+    hit.addEventListener('pointerenter', () => {
+      hover.setAttribute('visibility', 'visible');
+      const label = bucket === 'hour'
+        ? `${dateShortFmt.format(t)} · ${hourFmt.format(t)}–${hourFmt.format(t + step)}`
+        : weekdayFmt.format(t);
+      const rows = segs.slice().reverse().map(({ v, si }) => [colors[si], series[si].name, fmtVal(v)]);
+      if (!rows.length) rows.push([css('--s-other'), 'Geen verbruik', '–']);
+      else rows.push(['transparent', 'Totaal', fmtVal(totals[i])]);
+      showTooltip(box, (cx / f.W) * box.clientWidth, (f.y(totals[i]) / f.H) * box.clientHeight, label, rows);
+    });
+    hit.addEventListener('pointerleave', () => {
+      hover.setAttribute('visibility', 'hidden');
+      hideTooltip(box);
+    });
+    f.svg.append(g);
+  });
+
+  // Legenda met totaal per map: ook leesbaar zonder kleur.
+  const legend = $('#usage-legend');
+  legend.replaceChildren(
+    ...series.map((s, si) => {
+      const li = el('li');
+      const key = el('i', 'key key-box');
+      key.style.background = colors[si];
+      const sum = s.values.reduce((a, v) => a + val(v), 0);
+      li.title = s.path || s.name;
+      li.append(key, el('span', null, s.source ? `${s.name} · ${s.source}` : s.name), el('b', null, fmtVal(sum)));
+      return li;
+    })
+  );
+  const products = state.usage && state.usage.products ? state.usage.products.rows : [];
+  const notLocal = products.filter((r) => r.percent > 0 && r.key !== 'claude_code').map((r) => `${r.name} ${r.percent}%`);
+  $('#usage-note').textContent =
+    'Alleen Claude Code en Cowork op deze computer' +
+    (notLocal.length ? `; ${notLocal.join(', ')} van je week staat er niet in.` : '.');
+}
+
+async function loadTrend() {
+  clearTimeout(trendTimer);
+  const now = Date.now();
+  const since = trendDays === 1 ? now - 86400e3 : (() => {
+    const d = new Date(now - (trendDays - 1) * 86400e3);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  })();
+  try {
+    const [points, usage] = await Promise.all([
+      window.widget.history(since),
+      window.widget.projects(since, trendDays === 1 ? 'hour' : 'day'),
+    ]);
+    drawLimits(points, since);
+    lastTimeline = usage.timeline;
+    drawUsage(lastTimeline);
+  } catch {
+    $('#chart-usage').replaceChildren(el('div', 'chart-empty', 'Kon de gegevens niet laden.'));
+  }
+  if (view === 'trend') trendTimer = setTimeout(loadTrend, 3 * 60 * 1000);
+}
+
+for (const b of $$('.vperiod')) {
+  b.addEventListener('click', () => {
+    trendDays = Number(b.dataset.range);
+    for (const x of $$('.vperiod')) x.classList.toggle('active', x === b);
+    loadTrend();
+  });
+}
+for (const b of $$('.metric')) {
+  b.addEventListener('click', () => {
+    trendMetric = b.dataset.metric;
+    for (const x of $$('.metric')) x.classList.toggle('active', x === b);
+    if (lastTimeline) drawUsage(lastTimeline);
+  });
+}
+
 function setView(next) {
   view = next;
   panel.dataset.view = view;
@@ -395,6 +657,8 @@ function setView(next) {
   if (view === 'projects') loadProjects();
   else clearTimeout(projTimer);
   if (view === 'tips') loadTips();
+  if (view === 'trend') loadTrend();
+  else clearTimeout(trendTimer);
 }
 
 for (const t of $$('.tab')) t.addEventListener('click', () => setView(t.dataset.view));
@@ -492,6 +756,7 @@ function applyTheme(setting) {
   themeSetting = setting || 'dark';
   const resolved = themeSetting === 'system' ? (systemDark.matches ? 'dark' : 'light') : themeSetting;
   document.documentElement.dataset.theme = resolved;
+  if (view === 'trend') loadTrend(); // grafiekkleuren komen uit het thema
 }
 
 systemDark.addEventListener('change', () => applyTheme(themeSetting));

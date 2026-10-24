@@ -61,6 +61,7 @@
 
     <div class="tabs" role="tablist">
       <button class="tab active" data-view="limits" role="tab">Limieten</button>
+      <button class="tab" data-view="trend" role="tab">Verloop</button>
       <button class="tab" data-view="projects" role="tab">Mappen</button>
       <button class="tab" data-view="tips" role="tab">Tips</button>
     </div>
@@ -105,6 +106,41 @@
       </div>
 
       <div id="rows" class="rows"></div>
+    </div>
+
+    <!-- Verloop: grafieken over 24 uur tot 30 dagen -->
+    <div class="view" data-view="trend" hidden>
+      <div class="periods" role="group" aria-label="Periode">
+        <button class="vperiod" data-range="1">24 uur</button>
+        <button class="vperiod active" data-range="7">7 dagen</button>
+        <button class="vperiod" data-range="14">14 dagen</button>
+        <button class="vperiod" data-range="30">30 dagen</button>
+      </div>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Limieten</span>
+          <span class="chart-legend">
+            <span id="legend-5h"><i class="key key-line s1"></i>5 uur</span>
+            <span><i class="key key-line s2"></i>Week</span>
+          </span>
+        </div>
+        <div class="chart" id="chart-limits"></div>
+        <div class="chart-note" id="limits-note"></div>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title" id="usage-title">Verbruik per dag</span>
+          <span class="seg" role="group" aria-label="Eenheid">
+            <button class="metric active" data-metric="cost">$</button>
+            <button class="metric" data-metric="tokens">Tokens</button>
+          </span>
+        </div>
+        <div class="chart" id="chart-usage"></div>
+        <ul class="series-list" id="usage-legend"></ul>
+        <div class="chart-note" id="usage-note"></div>
+      </section>
     </div>
 
     <!-- Mappen (projectmappen op deze computer) -->
