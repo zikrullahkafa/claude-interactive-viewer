@@ -130,6 +130,9 @@
             <button data-value="small">Klein</button><button data-value="normal">Normaal</button><button data-value="large">Groot</button>
           </span>
         </div>
+        <div class="set-row"><span>Formaat<small>Sleep aan een hoek van de pil of het paneel</small></span>
+          <button class="link-btn" id="btn-size-reset" title="Pil en paneel terug naar de standaardgrootte">Standaardgrootte</button>
+        </div>
         <label class="set-row"><span>Altijd bovenop</span><input type="checkbox" class="switch" data-setting="alwaysOnTop"></label>
         <div class="set-row"><span>Sneltoets<small id="shortcut-hint">Tonen of verbergen, vanuit elk programma</small></span>
           <span class="shortcut-ctl">
@@ -271,6 +274,12 @@
       <span id="shortcut" class="kbd"></span>
     </footer>
   </section>
+
+  <!-- Hoeken om het formaat aan te passen -->
+  <div class="rz rz-nw" data-corner="nw" title="Sleep om groter of kleiner te maken"></div>
+  <div class="rz rz-ne" data-corner="ne" title="Sleep om groter of kleiner te maken"></div>
+  <div class="rz rz-sw" data-corner="sw" title="Sleep om groter of kleiner te maken"></div>
+  <div class="rz rz-se" data-corner="se" title="Sleep om groter of kleiner te maken"></div>
 
   <script src="app.js"></script>
 </body>
