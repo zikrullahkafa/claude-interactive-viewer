@@ -15,12 +15,13 @@ jobs:
   build:
     strategy:
       fail-fast: false
+      max-parallel: 1 # na elkaar: anders maken beide tegelijk dezelfde release aan
       matrix:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

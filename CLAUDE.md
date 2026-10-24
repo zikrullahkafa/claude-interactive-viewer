@@ -18,7 +18,13 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   (alleen als er 30 dagen lokale data is), Tips. Grafiekkleuren: `--s1`..`--s4` + `--s-other`,
   gevalideerd palet (dataviz-skill), aparte stappen voor licht en donker.
 - `lib/history.js`: het usage-endpoint geeft alleen de huidige stand; de widget slaat zelf metingen
-  op (`limietverloop.jsonl` in userData) voor de limietgrafiek. Geschiedenis begint dus pas bij installatie.
+  op (`limietverloop.jsonl` in userData: tijd, 5 uur, week, aandelen per product) voor de grafieken,
+  het verbruik per product en de patronen. Geschiedenis begint dus pas bij installatie.
+- `lib/alerts.js`: regels voor meldingen (pure functie, getest); `main.js` toont ze en onthoudt wat
+  al gemeld is (`config.notified`). Verborgen wordt elke 5 min opgehaald als meldingen aan staan.
+- `lib/updates.js`: Windows via electron-updater, Mac via de GitHub-API (melding + downloadpagina).
+- Instellingen: `SETTERS` in `main.js` + scherm `data-view="settings"` in de renderer; het
+  systeemvakmenu biedt dezelfde opties.
 - `scripts/hook.js` (SessionStart-hook), `scripts/shortcut.js` (bureaubladiconen .lnk / .app).
 
 ## Wat we hebben ontdekt (oktober 2026)

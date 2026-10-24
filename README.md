@@ -3,7 +3,8 @@
 Een kleine zwevende widget die altijd bovenop staat en laat zien hoeveel van je Claude-limieten je
 hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 
-- **Ingeklapt:** een pil met een ring voor de 5-uurslimiet en de percentages van 5 uur en week.
+- **Ingeklapt:** een pil met twee ringen (5 uur en week), de percentages en hoe lang het nog duurt
+  tot elke reset. Grootte klein/normaal/groot; na slepen klikt hij vast aan de schermrand.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
@@ -16,8 +17,17 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Tabblad Verloop:** grafieken over 24 uur, 7, 14 of 30 dagen. Bovenaan je weeklimiet door de
   tijd (bij 24 uur ook de 5-uurslimiet), uit metingen die de widget zelf opslaat zolang hij openstaat
   (`limietverloop.jsonl`, maximaal 62 dagen). Daaronder het verbruik per dag of per uur, gestapeld
-  per map (in dollars API-waarde of in tokens), met een legenda met totalen. Beweeg over de grafiek
+  per map (in dollars API-waarde of in tokens), met een legenda met totalen. Daartussen het verbruik per
+  product (Chats, Cowork, Claude Code) in procent van je weeklimiet, ook uit de eigen metingen,
+  en **Patronen**: deze week tegenover vorige week en een heatmap van de dagen en tijden waarop je het
+  meest verbruikt (laatste 4 weken). Elke staafgrafiek kan ook als tabel.
+- **Instellingen** (tandwiel): thema, pilgrootte, altijd bovenop, meestarten met Claude Code,
+  Claude-app meeopenen, meldingen per soort, versie en zoeken naar updates. Beweeg over de grafiek
   voor de precieze waarden.
+- **Meldingen** (Windows/Mac): bij 80% en 90% van je 5-uurs- of weeklimiet, als je week te snel
+  opraakt, na een reset, bij iets nieuws in je account (zoals een gratis reset) en als je cloudtegoed
+  bijna verloopt. Per soort aan of uit via het menu → *Meldingen*. Verborgen kijkt de widget elke
+  5 minuten (anders elke 3).
 - **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
   cloudsessietegoed in dollars met vervaldatum.
 - **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies “Zoals Windows” in het
@@ -85,8 +95,8 @@ en Mac-versie en publiceert ze.
 
 In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.
 
-De widget start nooit vanzelf met Windows; hij draait alleen als jij hem opent (icoon, Claude Code)
-en haalt alleen gegevens op zolang hij zichtbaar is.
+De widget start nooit vanzelf met Windows; hij draait alleen als jij hem opent (icoon, Claude Code).
+Verborgen haalt hij alleen gegevens op als er meldingen aan staan.
 
 Wil je niet meer dat hij meestart met Claude: `npm run uninstall-hook`.
 
