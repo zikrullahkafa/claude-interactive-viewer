@@ -29,4 +29,5 @@ contextBridge.exposeInMainWorld('widget', {
   dragMove: () => ipcRenderer.send('drag-move'),
   dragEnd: () => ipcRenderer.send('drag-end'),
   contextMenu: () => ipcRenderer.send('context-menu'),
+  ackNews: (keys) => ipcRenderer.send('ack-news', keys),
 });

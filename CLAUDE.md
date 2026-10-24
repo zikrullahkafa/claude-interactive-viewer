@@ -13,7 +13,10 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
 - `lib/projects.js` leest lokale sessielogboeken (Claude Code `~/.claude/projects`, Cowork
   `local-agent-mode-sessions`) en telt per map, gewogen met `lib/pricing.js` (API-prijzen per model).
 - `main.js`: venster (pil ↔ paneel), systeemvak/menubalk, sneltoets Ctrl/⌘+Alt+U, thema, polling
-  (alleen zolang zichtbaar, elke 3 min; 10 min na een 429).
+  (zichtbaar elke 3 min, verborgen elke 5 min als meldingen aan staan; 10 min na een 429). Nooit twee
+  verzoeken tegelijk (`inFlight`), anders vernieuwen ze allebei het token. Startvlaggen:
+  `--launch` (hook: los starten), `--remove-hook` (Windows-verwijderprogramma, `build/installer.nsh`),
+  `--demo`. macOS stuurt bij opnieuw aanklikken `activate` in plaats van `second-instance`.
 - `renderer/`: interface. Tabbladen Limieten, Verloop (SVG-grafieken, zonder bibliotheek), Mappen
   (alleen als er 30 dagen lokale data is), Tips. Grafiekkleuren: `--s1`..`--s4` + `--s-other`,
   gevalideerd palet (dataviz-skill), aparte stappen voor licht en donker.

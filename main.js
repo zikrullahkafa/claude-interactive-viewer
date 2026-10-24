@@ -2,7 +2,7 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const { fetchUsage } = require('./lib/usage');
 const { projectUsage, describeLogs, bucketStarts } = require('./lib/projects');
 const { createHistory, productUsage, patterns } = require('./lib/history');
@@ -42,10 +42,19 @@ if (process.argv.includes('--launch')) {
   process.exit(0);
 }
 
-if (!app.requestSingleInstanceLock()) {
-  // Draait al: het eerste proces krijgt 'second-instance' en toont de widget.
-  app.quit();
+// Vanuit het Windows-verwijderprogramma: de Claude Code-hook weghalen en stoppen.
+if (process.argv.includes('--remove-hook')) {
+  try {
+    hook.setHook(false);
+  } catch {
+    // settings.json onleesbaar: niets aan te doen
+  }
+  process.exit(0);
 }
+
+// Draait al: het eerste proces krijgt 'second-instance' en toont de widget; dit proces stopt.
+const IS_PRIMARY = app.requestSingleInstanceLock();
+if (!IS_PRIMARY) app.exit(0);
 
 let win = null;
 let tray = null;
@@ -57,6 +66,7 @@ let lastUsage = null;
 let lastError = null;
 let lastFetch = 0;
 let pollTimer = null;
+let inFlight = null; // lopend verzoek: nooit twee tegelijk (anders vernieuwen ze allebei het token)
 
 // ---------- instellingen ----------
 
@@ -64,7 +74,7 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, pillSize: 'normal', lastUsage: null,
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillSize: 'normal', ackNews: [], lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
 
@@ -72,7 +82,9 @@ const notificationsOn = () => Object.values({ ...alerts.DEFAULTS, ...config.noti
 
 function runAlerts(prev, curr) {
   if (DEMO || !Notification.isSupported()) return;
-  const list = alerts.evaluate(prev, curr, config.notify, config.notified);
+  // Een bewaarde stand van uren geleden zegt niets over een reset van nu.
+  const recent = prev && prev.fetchedAt && Date.now() - new Date(prev.fetchedAt).getTime() < 20 * 60 * 1000;
+  const list = alerts.evaluate(recent ? prev : null, curr, config.notify, config.notified);
   if (!list.length) return;
   for (const a of list) {
     config.notified[a.key] = Date.now();
@@ -149,13 +161,19 @@ async function openLogCheck() {
   }
 }
 
-// Een eerdere versie zette de widget bij het inloggen aan; dat ruimen we op.
+// Een vroege ontwikkelversie (okt. 2026) zette de widget in de Windows-autostart. Die regel
+// wees naar de broncodemap; we halen alleen Run-waarden weg die daarnaar verwijzen.
 function removeLegacyLoginItem() {
-  if (DEMO || !(process.platform === 'win32' || process.platform === 'darwin')) return;
-  app.setLoginItemSettings({
-    openAtLogin: false,
-    path: process.execPath,
-    args: app.isPackaged ? [] : [app.getAppPath()],
+  if (DEMO || process.platform !== 'win32') return;
+  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
+  execFile('reg', ['query', key], { windowsHide: true }, (err, stdout) => {
+    if (err) return;
+    for (const line of stdout.split(/\r?\n/)) {
+      const m = /^\s{4}(.+?)\s{4}REG_\w+\s{4}(.*)$/.exec(line);
+      if (m && /claude-interactive-viewer/i.test(m[2])) {
+        execFile('reg', ['delete', key, '/v', m[1], '/f'], { windowsHide: true }, () => {});
+      }
+    }
   });
 }
 
@@ -344,12 +362,18 @@ function demoUsage() {
 }
 
 function broadcast() {
-  if (win) win.webContents.send('usage', { usage: lastUsage, error: lastError });
+  if (win) win.webContents.send('usage', { usage: lastUsage, error: lastError, ackNews: config.ackNews });
   updateTrayMenu();
 }
 
-async function refresh(manual) {
+function refresh(manual) {
+  if (inFlight) return inFlight;
   if (manual && Date.now() - lastFetch < MIN_MANUAL_MS) return broadcast();
+  inFlight = doRefresh().finally(() => (inFlight = null));
+  return inFlight;
+}
+
+async function doRefresh() {
   lastFetch = Date.now();
   clearTimeout(pollTimer);
   let next = POLL_MS;
@@ -450,7 +474,7 @@ function updateTrayMenu() {
         submenu: [
           ['dark', 'Donker'],
           ['light', 'Licht'],
-          ['system', 'Zoals Windows'],
+          ['system', process.platform === 'darwin' ? 'Zoals macOS' : 'Zoals Windows'],
         ].map(([id, label]) => ({ label, type: 'radio', checked: config.theme === id, click: () => applyTheme(id) })),
       },
       {
@@ -484,8 +508,14 @@ function createTray() {
 
 // ---------- IPC ----------
 
+ipcMain.on('ack-news', (_e, keys) => {
+  if (!Array.isArray(keys)) return;
+  config.ackNews = [...new Set([...(config.ackNews || []), ...keys.map(String)])];
+  saveConfig();
+  broadcast();
+});
 ipcMain.handle('get-state', () => ({
-  usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme,
+  usage: lastUsage, error: lastError, demo: DEMO, shortcut: SHORTCUT, theme: config.theme, ackNews: config.ackNews,
   pillScale: PILL_SCALES[config.pillSize] || 1,
   update: updateState, version: app.getVersion(),
 }));
@@ -641,10 +671,14 @@ app.on('second-instance', (_e, argv) => {
   showWidget();
   openClaudeApp(argv);
 });
+// macOS start geen tweede proces als je het icoon aanklikt, maar stuurt 'activate'.
+app.on('activate', () => {
+  if (app.isReady()) showWidget();
+});
 app.on('window-all-closed', (e) => e.preventDefault());
 app.on('will-quit', () => globalShortcut.unregisterAll());
 
-app.whenReady().then(() => {
+if (IS_PRIMARY) app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
   // Windows toont meldingen alleen met een AppUserModelId (gelijk aan de appId van de installatie).
   if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? 'nl.zikrullahkafa.claudemeter' : process.execPath);

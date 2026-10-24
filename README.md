@@ -22,16 +22,15 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   en **Patronen**: deze week tegenover vorige week en een heatmap van de dagen en tijden waarop je het
   meest verbruikt (laatste 4 weken). Elke staafgrafiek kan ook als tabel.
 - **Instellingen** (tandwiel): thema, pilgrootte, altijd bovenop, meestarten met Claude Code,
-  Claude-app meeopenen, meldingen per soort, versie en zoeken naar updates. Beweeg over de grafiek
-  voor de precieze waarden.
+  Claude-app meeopenen, meldingen per soort, versie en zoeken naar updates.
 - **Meldingen** (Windows/Mac): bij 80% en 90% van je 5-uurs- of weeklimiet, als je week te snel
   opraakt, na een reset, bij iets nieuws in je account (zoals een gratis reset) en als je cloudtegoed
-  bijna verloopt. Per soort aan of uit via het menu → *Meldingen*. Verborgen kijkt de widget elke
+  bijna verloopt. Per soort aan of uit in de instellingen. Verborgen kijkt de widget elke
   5 minuten (anders elke 3).
 - **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
   cloudsessietegoed in dollars met vervaldatum.
-- **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies “Zoals Windows” in het
-  systeemvakmenu.
+- **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies *Systeem* in de instellingen
+  om Windows/macOS te volgen.
 - **Tempo:** bovenaan staat of je in dit tempo de weekreset haalt, zoals op claude.ai.
 - **Tabblad Tips:** aanwijzingen om zuiniger te werken, afgeleid uit je limieten en je Claude
   Code-sessies van deze week (effort-levels, modelkeuze, lengte van sessies, denkwerk).
@@ -64,12 +63,22 @@ bij te werken*.
 De Mac-app kan zichzelf niet vervangen (daarvoor is een betaald Apple-certificaat nodig): bij een
 nieuwe versie verschijnt bovenin het paneel *klik om te downloaden*; installeer dan de nieuwe `.dmg`.
 
-### Instellingen in het menu
+### Na installeren
 
-Rechtsklik op de widget of klik op het icoon in het systeemvak (Windows) of de menubalk (Mac):
+Open de instellingen met het tandwiel rechtsboven in het paneel:
 
 - **Meestarten met Claude Code**: de widget verschijnt als je `claude` start (staat na installatie aan).
 - **Claude-app meeopenen**: als je Claude Meter opent, gaat de Claude desktop-app ook open.
+
+### Verwijderen
+
+- **Windows:** *Instellingen* → *Apps* → *Claude Meter* → *Verwijderen*. De koppeling met Claude Code
+  wordt daarbij ook weggehaald.
+- **Mac:** zet eerst in de instellingen *Meestarten met Claude Code* uit, sluit de app
+  (rechtsklik → *Afsluiten*) en sleep *Claude Meter* uit *Apps* naar de prullenbak.
+
+Je metingen en instellingen blijven bewaard in `%APPDATA%\claude-usage-widget` (Windows) of
+`~/Library/Application Support/claude-usage-widget` (Mac); verwijder die map als je alles kwijt wilt.
 
 ### Vanaf de broncode (voor ontwikkelen)
 
@@ -98,7 +107,8 @@ In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.
 De widget start nooit vanzelf met Windows; hij draait alleen als jij hem opent (icoon, Claude Code).
 Verborgen haalt hij alleen gegevens op als er meldingen aan staan.
 
-Wil je niet meer dat hij meestart met Claude: `npm run uninstall-hook`.
+Niet meer meestarten met Claude Code: zet het uit in de instellingen (ontwikkelversie:
+`npm run uninstall-hook`).
 
 ## Waar de cijfers vandaan komen
 
