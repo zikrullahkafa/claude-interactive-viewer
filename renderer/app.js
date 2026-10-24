@@ -898,7 +898,7 @@ function draggable(target, onClick) {
 }
 
 draggable(pill, expand);
-draggable($('.panel-head'));
+draggable($('.panel-head'), () => collapse()); // klik op de bovenbalk = inklappen, slepen = verplaatsen
 
 // ---------- knoppen ----------
 
@@ -910,7 +910,6 @@ refreshBtn.addEventListener('click', () => {
   if (view === 'tips') loadTips();
   setTimeout(() => refreshBtn.classList.remove('spin'), 900);
 });
-$('#btn-collapse').addEventListener('click', () => collapse());
 // ---------- thema ----------
 
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
