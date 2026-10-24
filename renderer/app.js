@@ -941,6 +941,18 @@ function applyTheme(setting) {
 
 systemDark.addEventListener('change', () => applyTheme(themeSetting));
 window.widget.onTheme(applyTheme);
+
+// Rustig: de pil vervaagt als je muis er niet op staat (de CSS doet het vervagen).
+const FADE_OPACITY = { light: 0.6, strong: 0.3 };
+function applyFade(mode) {
+  if (FADE_OPACITY[mode]) {
+    document.body.dataset.fade = mode;
+    document.body.style.setProperty('--fade', FADE_OPACITY[mode]);
+  } else {
+    delete document.body.dataset.fade;
+  }
+}
+window.widget.onFade(applyFade);
 $('#btn-theme').addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   applyTheme(next);
@@ -1144,6 +1156,7 @@ window.widget.onForceCollapse(() => collapse(false));
 window.widget.getState().then((s) => {
   state = s;
   applyTheme(s.theme);
+  applyFade(s.idleFade);
   renderUpdate(s.update);
   updateMappenTab();
   $('#shortcut').textContent = s.shortcut;

@@ -87,7 +87,7 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, trayStatus: 'both', ackNews: [],
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, trayStatus: 'both', idleFade: 'light', ackNews: [],
   shortcut: DEFAULT_SHORTCUT, quietHours: { enabled: false, from: '22:00', to: '08:00' }, lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
@@ -542,6 +542,17 @@ function setTrayStatus(mode) {
   if (trayStatusOn() && win && !win.isVisible()) refresh(false); // verborgen: (weer) bijhouden
 }
 
+// Rustig: de pil vervaagt als je muis er niet op staat ('off', 'light' of 'strong'); de renderer doet de rest.
+const FADE_MODES = [['off', 'Uit'], ['light', 'Iets'], ['strong', 'Veel']];
+const fadeMode = () => (FADE_MODES.some(([id]) => id === config.idleFade) ? config.idleFade : 'light');
+
+function setIdleFade(mode) {
+  config.idleFade = FADE_MODES.some(([id]) => id === mode) ? mode : 'light';
+  saveConfig();
+  if (win) win.webContents.send('fade', config.idleFade);
+  updateTrayMenu();
+}
+
 function updateTrayMenu() {
   if (!tray) return;
   updateTrayStatus();
@@ -579,6 +590,12 @@ function updateTrayMenu() {
         label: trayStatusTitle(),
         submenu: TRAY_MODES.map(([id, label]) => ({
           label, type: 'radio', checked: trayMode() === id, click: () => setTrayStatus(id),
+        })),
+      },
+      {
+        label: 'Doorzichtig in rust',
+        submenu: FADE_MODES.map(([id, label]) => ({
+          label, type: 'radio', checked: fadeMode() === id, click: () => setIdleFade(id),
         })),
       },
       {
@@ -660,7 +677,7 @@ ipcMain.on('ack-news', (_e, keys) => {
 });
 ipcMain.handle('get-state', () => ({
   usage: lastUsage, error: lastError, demo: DEMO, shortcut: shortcutLabel(), theme: config.theme, ackNews: config.ackNews,
-  update: updateState, version: app.getVersion(),
+  update: updateState, version: app.getVersion(), idleFade: fadeMode(),
 }));
 ipcMain.on('install-update', () => updater && updater.install());
 ipcMain.on('refresh', () => refresh(true));
@@ -673,6 +690,7 @@ function settingsSnapshot() {
     theme: config.theme,
     pillSize: pillPreset(),
     trayStatus: trayMode(),
+    idleFade: fadeMode(),
     trayStatusAvailable: !!tray,
     trayStatusMac: process.platform === 'darwin',
     sizeDefault: Math.abs(pillScale() - 1) < 0.01 && Math.abs(panelScale() - 1) < 0.01
@@ -698,6 +716,7 @@ const SETTERS = {
   theme: (v) => applyTheme(v),
   pillSize: (v) => setPillSize(v),
   trayStatus: (v) => setTrayStatus(v),
+  idleFade: (v) => setIdleFade(v),
   resetSize: () => {
     config.panelHeight = PANEL_HEIGHT.default;
     setScales(1, 1);
