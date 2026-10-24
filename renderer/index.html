@@ -134,6 +134,13 @@
           </span>
         </div>
         <label class="set-row"><span>Altijd bovenop</span><input type="checkbox" class="switch" data-setting="alwaysOnTop"></label>
+        <div class="set-row"><span>Sneltoets<small id="shortcut-hint">Tonen of verbergen, vanuit elk programma</small></span>
+          <span class="shortcut-ctl">
+            <button class="kbd-btn" id="btn-shortcut" title="Klik en druk op een nieuwe combinatie">–</button>
+            <button class="link-btn" id="btn-shortcut-reset" title="Terug naar de standaard">Standaard</button>
+            <button class="link-btn" id="btn-shortcut-off" title="Geen sneltoets">Uit</button>
+          </span>
+        </div>
       </section>
 
       <section class="set-group">
@@ -143,6 +150,27 @@
 
       <section class="set-group" id="notify-group">
         <div class="set-title">Meldingen</div>
+      </section>
+
+      <section class="set-group">
+        <label class="set-row"><span>Stille uren<small>Dan geen meldingen; drempels komen daarna alsnog</small></span><input type="checkbox" class="switch" id="quiet-enabled"></label>
+        <div class="set-row" id="quiet-times"><span>Tijden</span>
+          <span class="times"><input type="text" id="quiet-from" inputmode="numeric" maxlength="5" placeholder="22:00" aria-label="Van"> <span>tot</span> <input type="text" id="quiet-to" inputmode="numeric" maxlength="5" placeholder="08:00" aria-label="Tot"></span>
+        </div>
+        <div class="set-row"><span>Testmelding<small id="test-result">Kijk of meldingen bij jou aankomen</small></span>
+          <button class="small-btn" id="btn-test-notify">Sturen</button>
+        </div>
+      </section>
+
+      <section class="set-group">
+        <div class="set-title">Exporteren (laatste 4 weken)</div>
+        <div class="set-row"><span>Overzicht<small>Per week, per dag en per map</small></span>
+          <button class="small-btn" data-export="pdf">PDF</button>
+        </div>
+        <div class="set-row"><span>Gegevens<small>Per dag, opent in Excel</small></span>
+          <button class="small-btn" data-export="csv">CSV</button>
+        </div>
+        <small class="export-result" id="export-result"></small>
       </section>
 
       <section class="set-group">

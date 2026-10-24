@@ -21,8 +21,11 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   product (Chats, Cowork, Claude Code) in procent van je weeklimiet, ook uit de eigen metingen,
   en **Patronen**: deze week tegenover vorige week en een heatmap van de dagen en tijden waarop je het
   meest verbruikt (laatste 4 weken). Elke staafgrafiek kan ook als tabel.
-- **Instellingen** (tandwiel): thema, pilgrootte, altijd bovenop, meestarten met Claude Code,
-  Claude-app meeopenen, meldingen per soort, versie en zoeken naar updates.
+- **Instellingen** (tandwiel): thema, pilgrootte, altijd bovenop, eigen sneltoets (klik en druk de
+  combinatie), meestarten met Claude Code, Claude-app meeopenen, meldingen per soort, stille uren,
+  een testmelding, exporteren en zoeken naar updates.
+- **Exporteren:** een overzicht van de laatste 4 weken als PDF (per week, per dag en per map) of de
+  cijfers per dag als CSV voor Excel (puntkomma's en decimale komma's, zoals Nederlandse Excel verwacht).
 - **Meldingen** (Windows/Mac): bij 80% en 90% van je 5-uurs- of weeklimiet, als je week te snel
   opraakt, na een reset, bij iets nieuws in je account (zoals een gratis reset) en als je cloudtegoed
   bijna verloopt. Per soort aan of uit in de instellingen. Verborgen kijkt de widget elke
@@ -99,7 +102,7 @@ en Mac-versie en publiceert ze.
 |---|---|
 | Inklappen | ˄-knop in het paneel, of `Esc` |
 | Verbergen | ×-knop in het paneel, of rechtermuisknop → Verbergen |
-| Weer tonen | klik op het icoon in het systeemvak, of `Ctrl+Alt+U` (`⌘+Alt+U` op Mac), of start Claude Code opnieuw |
+| Weer tonen | klik op het icoon in het systeemvak, of de sneltoets (standaard `Ctrl+Alt+U`, op de Mac `⌘⌥U`; te wijzigen in de instellingen), of start Claude Code opnieuw |
 | Helemaal afsluiten | systeemvak → Afsluiten, of rechtermuisknop → Afsluiten |
 
 In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.
@@ -151,6 +154,9 @@ npm run demo
 | `lib/projects.js` | verbruik per map uit de Claude Code- en Cowork-logboeken |
 | `lib/pricing.js` | API-prijzen per model, om verbruik te wegen |
 | `lib/history.js` | eigen metingen van de limieten opslaan voor de grafiek |
+| `lib/report.js` | overzicht voor export (CSV en HTML voor de PDF) |
+| `lib/shortcut.js` | toetscombinatie omzetten naar een sneltoets en terug |
+| `lib/alerts.js` | regels voor meldingen en stille uren |
 | `renderer/` | de interface (pil en paneel) |
 | `bin/launch.js` | start de widget losgekoppeld; toont hem weer als hij al draait |
 | `scripts/hook.js` | hook in `~/.claude/settings.json` zetten of verwijderen |
