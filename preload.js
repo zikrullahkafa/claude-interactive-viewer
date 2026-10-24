@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('widget', {
   onUpdate: (cb) => ipcRenderer.on('update', (_e, update) => cb(update)),
   installUpdate: () => ipcRenderer.send('install-update'),
   onOpenPanel: (cb) => ipcRenderer.on('open-panel', () => cb()),
+  onForceCollapse: (cb) => ipcRenderer.on('force-collapse', () => cb()),
   onPillSize: (cb) => ipcRenderer.on('pill-size', (_e, scale) => cb(scale)),
   refresh: () => ipcRenderer.send('refresh'),
   setTheme: (theme) => ipcRenderer.send('set-theme', theme),

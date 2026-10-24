@@ -353,7 +353,12 @@ function showWidget() {
 
 function hideWidget() {
   if (win) {
-    if (expanded) setExpanded(false);
+    if (expanded) {
+      setExpanded(false);
+      // Verbergen via sneltoets, systeemvak of menu: de interface moet ook terug naar de pil,
+      // anders staat bij het weer tonen een afgekapt paneel in een pilgroot venster.
+      win.webContents.send('force-collapse');
+    }
     win.hide();
   }
   updateTrayMenu();

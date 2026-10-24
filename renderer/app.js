@@ -853,14 +853,15 @@ function expand() {
   else setView(view); // actuele gegevens laden voor het open tabblad
 }
 
-function collapse() {
+// Interface terug naar de pil. `tellMain` is false als het hoofdproces het venster al klein maakte.
+function collapse(tellMain = true) {
   if (!isExpanded) return;
   isExpanded = false;
   clearTimeout(trendTimer); // dicht: grafieken en mappen niet op de achtergrond verversen
   clearTimeout(projTimer);
   panel.hidden = true;
   pill.hidden = false;
-  window.widget.collapse();
+  if (tellMain) window.widget.collapse();
 }
 
 const sizeWatcher = new ResizeObserver(() => {
@@ -909,7 +910,7 @@ refreshBtn.addEventListener('click', () => {
   if (view === 'tips') loadTips();
   setTimeout(() => refreshBtn.classList.remove('spin'), 900);
 });
-$('#btn-collapse').addEventListener('click', collapse);
+$('#btn-collapse').addEventListener('click', () => collapse());
 // ---------- thema ----------
 
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
@@ -1118,6 +1119,7 @@ function renderUpdate(u) {
 $('#update').addEventListener('click', () => window.widget.installUpdate());
 window.widget.onUpdate(renderUpdate);
 window.widget.onOpenPanel(() => expand()); // klik op een melding opent het paneel
+window.widget.onForceCollapse(() => collapse(false));
 const applyPillScale = (k) => (pill.style.zoom = String(k || 1));
 window.widget.onPillSize(applyPillScale);
 
