@@ -900,6 +900,30 @@ function draggable(target, onClick) {
 draggable(pill, expand);
 draggable($('.panel-head'), () => collapse()); // klik op de bovenbalk = inklappen, slepen = verplaatsen
 
+// ---------- formaat: aan een hoek slepen ----------
+// Het hoofdproces schaalt het hele venster (zoom), dus de verhoudingen blijven gelijk.
+
+for (const grip of $$('.rz')) {
+  let active = false;
+  const end = () => {
+    if (!active) return;
+    active = false;
+    document.body.classList.remove('resizing');
+    window.widget.resizeEnd();
+  };
+  grip.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    active = true;
+    grip.setPointerCapture(e.pointerId);
+    document.body.classList.add('resizing');
+    window.widget.resizeStart(grip.dataset.corner, isExpanded ? panelHeight() : 0);
+  });
+  grip.addEventListener('pointermove', () => active && window.widget.resizeMove());
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('lostpointercapture', end);
+}
+
 // ---------- knoppen ----------
 
 const refreshBtn = $('#btn-refresh');
@@ -988,6 +1012,7 @@ function renderSettings(s) {
     ? `Versie ${s.update.version} ${s.update.status === 'ready' ? 'staat klaar' : s.update.status === 'downloading' ? 'wordt gedownload' : 'is beschikbaar'}`
     : s.packaged ? 'Je hebt de nieuwste versie' : 'Ontwikkelversie (bijwerken met git pull)';
   $('#btn-check-update').hidden = !s.packaged;
+  $('#btn-size-reset').disabled = !!s.sizeDefault;
 }
 
 async function openSettings() {
@@ -1010,6 +1035,7 @@ for (const seg of $$('.seg[data-setting]')) {
 for (const input of $$('input.switch[data-setting]')) {
   input.addEventListener('change', async () => renderSettings(await window.widget.setSetting(input.dataset.setting, input.checked)));
 }
+$('#btn-size-reset').addEventListener('click', async () => renderSettings(await window.widget.setSetting('resetSize', true)));
 $('#btn-check-update').addEventListener('click', () => {
   window.widget.checkUpdate();
   $('#set-update').textContent = 'Bezig met controleren…';
@@ -1119,13 +1145,13 @@ $('#update').addEventListener('click', () => window.widget.installUpdate());
 window.widget.onUpdate(renderUpdate);
 window.widget.onOpenPanel(() => expand()); // klik op een melding opent het paneel
 window.widget.onForceCollapse(() => collapse(false));
-const applyPillScale = (k) => (pill.style.zoom = String(k || 1));
-window.widget.onPillSize(applyPillScale);
+window.widget.onRemeasure(() => {
+  if (isExpanded) window.widget.resize(panelHeight());
+});
 
 window.widget.getState().then((s) => {
   state = s;
   applyTheme(s.theme);
-  applyPillScale(s.pillScale);
   renderUpdate(s.update);
   updateMappenTab();
   $('#shortcut').textContent = s.shortcut;

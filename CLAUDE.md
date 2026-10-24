@@ -17,6 +17,10 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   verzoeken tegelijk (`inFlight`), anders vernieuwen ze allebei het token. Startvlaggen:
   `--launch` (hook: los starten), `--remove-hook` (Windows-verwijderprogramma, `build/installer.nsh`),
   `--demo`. macOS stuurt bij opnieuw aanklikken `activate` in plaats van `second-instance`.
+  Formaat: `config.pillScale` (0,7–2) en `config.panelScale` (0,8–1,6), toegepast met
+  `webContents.setZoomFactor`; venster = CSS-maat (pil 216x64, paneel 340 breed) × schaal. Hoeken
+  slepen via IPC `resize-start/move/end` (cursor uit `screen`, tegenoverliggende hoek blijft vast,
+  niet voorbij de schermrand); daarna `remeasure` naar de renderer voor de paneelhoogte.
 - `renderer/`: interface. Tabbladen Limieten, Verloop (SVG-grafieken, zonder bibliotheek), Mappen
   (alleen als er 30 dagen lokale data is), Tips. Grafiekkleuren: `--s1`..`--s4` + `--s-other`,
   gevalideerd palet (dataviz-skill), aparte stappen voor licht en donker.

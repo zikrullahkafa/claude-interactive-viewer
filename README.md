@@ -4,7 +4,7 @@ Een kleine zwevende widget die altijd bovenop staat en laat zien hoeveel van je 
 hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 
 - **Ingeklapt:** een pil met twee ringen (5 uur en week), de percentages en hoe lang het nog duurt
-  tot elke reset. Grootte klein/normaal/groot; na slepen klikt hij vast aan de schermrand.
+  tot elke reset. Na verplaatsen klikt hij vast aan de schermrand.
 - **Klik erop:** een paneel met de **5-uurslimiet** en de **weeklimiet** in procenten, met balk,
   kleur (groen < 50%, oranje < 80%, rood daarboven) en wanneer elke limiet reset. Als je abonnement
   aparte weeklimieten voor Opus of Sonnet heeft, of extra gebruik aan heeft staan, staan die eronder.
@@ -21,7 +21,7 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   product (Chats, Cowork, Claude Code) in procent van je weeklimiet, ook uit de eigen metingen,
   en **Patronen**: deze week tegenover vorige week en een heatmap van de dagen en tijden waarop je het
   meest verbruikt (laatste 4 weken). Elke staafgrafiek kan ook als tabel.
-- **Instellingen** (tandwiel): thema, pilgrootte, altijd bovenop, eigen sneltoets (klik en druk de
+- **Instellingen** (tandwiel): thema, pilgrootte, standaardgrootte, altijd bovenop, eigen sneltoets (klik en druk de
   combinatie), meestarten met Claude Code, Claude-app meeopenen, meldingen per soort, stille uren,
   een testmelding, exporteren en zoeken naar updates.
 - **Exporteren:** een overzicht van de laatste 4 weken als PDF (per week, per dag en per map) of de
@@ -38,6 +38,10 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Tabblad Tips:** aanwijzingen om zuiniger te werken, afgeleid uit je limieten en je Claude
   Code-sessies van deze week (effort-levels, modelkeuze, lengte van sessies, denkwerk).
 - **Slepen** om hem te verplaatsen; de plek wordt onthouden.
+- **Groter of kleiner:** sleep aan een hoek van de pil of het paneel. Alles schaalt in verhouding
+  mee (pil 70–200%, paneel 80–160%) en de hoek tegenover de hoek waaraan je sleept, blijft staan.
+  Pil en paneel onthouden elk hun eigen grootte. Terug naar normaal: instellingen →
+  *Standaardgrootte*; voor de pil kan ook Klein/Normaal/Groot.
 
 ## Installeren
 
@@ -101,6 +105,7 @@ en Mac-versie en publiceert ze.
 | Wat | Hoe |
 |---|---|
 | Inklappen | klik op de bovenbalk van het paneel (bij „Claude Meter”), of `Esc` |
+| Groter of kleiner | sleep aan een hoek (de grepen verschijnen als je muis boven de widget is) |
 | Verbergen | ×-knop in het paneel, of rechtermuisknop → Verbergen |
 | Weer tonen | klik op het icoon in het systeemvak, of de sneltoets (standaard `Ctrl+Alt+U`, op de Mac `⌘⌥U`; te wijzigen in de instellingen), of start Claude Code opnieuw |
 | Helemaal afsluiten | systeemvak → Afsluiten, of rechtermuisknop → Afsluiten |
