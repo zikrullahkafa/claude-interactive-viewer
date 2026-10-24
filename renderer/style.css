@@ -292,7 +292,9 @@ label.set-row { cursor: pointer; }
 .set-row > span:first-child { display: grid; }
 .set-row small { font-size: 10.5px; color: var(--muted); font-weight: 400; }
 .set-row code { font-size: 10.5px; }
+.set-row .seg { flex: none; }
 .set-row .seg button {
+  white-space: nowrap;
   border: 0; border-radius: 6px; padding: 3px 8px; cursor: pointer; background: transparent;
   color: var(--muted); font: inherit; font-size: 11px; font-weight: 600;
 }

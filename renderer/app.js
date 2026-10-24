@@ -978,6 +978,9 @@ function renderSettings(s) {
   for (const input of $$('input.switch[data-setting]')) input.checked = !!s[input.dataset.setting];
   $('#row-hook').hidden = !s.hookAvailable;
   $('#row-openclaude').hidden = !s.openClaudeAvailable;
+  $('#row-tray-status').hidden = !s.trayStatusAvailable;
+  $('#tray-status-title').textContent = s.trayStatusMac ? 'Menubalk' : 'Systeemvak';
+  $('#tray-status-hint').textContent = s.trayStatusMac ? 'Naast het icoon' : 'Ring in het icoon';
   const group = $('#notify-group');
   $$('.set-row', group).forEach((r) => r.remove());
   for (const [key, label] of s.notifyLabels) {
@@ -1129,7 +1132,7 @@ function renderUpdate(u) {
   btn.replaceChildren(
     el('b', null, `Nieuwe versie ${u.version}`),
     u.status === 'ready' ? ' · klik om te herstarten en bij te werken'
-      : u.status === 'downloading' ? ' · wordt gedownload…'
+      : u.status === 'downloading' ? ` · wordt gedownload…${u.progress ? ` ${u.progress}%` : ''}`
         : ' · klik om te downloaden'
   );
 }

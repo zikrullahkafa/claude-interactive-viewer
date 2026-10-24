@@ -8,6 +8,7 @@ const { projectUsage, describeLogs, bucketStarts } = require('./lib/projects');
 const { createHistory, productUsage, patterns } = require('./lib/history');
 const { createUpdater } = require('./lib/updates');
 const alerts = require('./lib/alerts');
+const trayicon = require('./lib/trayicon');
 const hook = require('./scripts/hook');
 const { toAccelerator, displayAccelerator, DEFAULT_SHORTCUT } = require('./lib/shortcut');
 const report = require('./lib/report');
@@ -68,6 +69,8 @@ if (!IS_PRIMARY) app.exit(0);
 
 let win = null;
 let tray = null;
+let trayIcon = null; // standaardicoon (ook als er geen limieten te tonen zijn)
+let trayKey = null;
 let expanded = false;
 let anchor = { right: false, bottom: false };
 let pillPos = null;
@@ -84,7 +87,7 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, ackNews: [],
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, trayStatus: 'both', ackNews: [],
   shortcut: DEFAULT_SHORTCUT, quietHours: { enabled: false, from: '22:00', to: '08:00' }, lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
@@ -489,9 +492,10 @@ async function doRefresh() {
   }
   broadcast();
   // Alleen ophalen zolang de widget zichtbaar is; bij weer tonen wordt meteen ververst.
-  // Zichtbaar: elke 3 minuten. Verborgen: alleen voor meldingen, elke 5 minuten.
+  // Zichtbaar: elke 3 minuten. Verborgen: alleen voor meldingen of de stand in het
+  // systeemvak/de menubalk, elke 5 minuten.
   const visible = !!(win && win.isVisible());
-  if (visible || notificationsOn()) {
+  if (visible || notificationsOn() || trayStatusOn()) {
     pollTimer = setTimeout(() => refresh(false), visible ? next : Math.max(next, HIDDEN_POLL_MS));
   }
 }
@@ -504,8 +508,43 @@ function trayLabel() {
   return `Claude Meter · 5 uur ${p(lastUsage.fiveHour)} · week ${p(lastUsage.sevenDay)}`;
 }
 
+const TRAY_MODES = [['both', '5 uur en week'], ['fiveHour', '5 uur'], ['sevenDay', 'Week'], ['off', 'Niets']];
+const trayMode = () => (trayicon.MODES.includes(config.trayStatus) ? config.trayStatus : 'both');
+const trayStatusOn = () => !!tray && trayMode() !== 'off';
+const trayStatusTitle = () => (process.platform === 'darwin' ? 'In de menubalk' : 'In het systeemvakicoon');
+
+// Stand naast het icoon (macOS) of als ringicoon (Windows/Linux); alleen bij een wijziging.
+function updateTrayStatus() {
+  if (!tray) return;
+  const mode = trayMode();
+  const key = trayicon.statusKey(lastUsage, mode);
+  if (key === trayKey) return;
+  trayKey = key;
+  if (process.platform === 'darwin') {
+    tray.setTitle(trayicon.trayTitle(lastUsage, mode), { fontType: 'monospacedDigit' });
+    return;
+  }
+  let img = null;
+  if (trayicon.ringsFor(lastUsage, mode)) {
+    img = nativeImage.createEmpty();
+    // 16 px bij 100% schaal, tot 32 px bij 200%
+    for (const scale of [1, 1.25, 1.5, 2]) {
+      img.addRepresentation({ scaleFactor: scale, buffer: trayicon.ringPng(lastUsage, mode, Math.round(16 * scale)) });
+    }
+  }
+  tray.setImage(img || trayIcon);
+}
+
+function setTrayStatus(mode) {
+  config.trayStatus = trayicon.MODES.includes(mode) ? mode : 'both';
+  saveConfig();
+  updateTrayMenu();
+  if (trayStatusOn() && win && !win.isVisible()) refresh(false); // verborgen: (weer) bijhouden
+}
+
 function updateTrayMenu() {
   if (!tray) return;
+  updateTrayStatus();
   const visible = !!(win && win.isVisible());
   tray.setToolTip(trayLabel());
   tray.setContextMenu(
@@ -521,7 +560,8 @@ function updateTrayMenu() {
       ...(updateState
         ? [{
           label: updateState.status === 'ready' ? `Herstarten en bijwerken naar ${updateState.version}`
-            : updateState.status === 'downloading' ? `Versie ${updateState.version} wordt gedownload…`
+            : updateState.status === 'downloading'
+              ? `Versie ${updateState.version} wordt gedownload…${updateState.progress ? ` ${updateState.progress}%` : ''}`
               : `Versie ${updateState.version} downloaden`,
           enabled: updateState.status !== 'downloading',
           click: () => updater && updater.install(),
@@ -534,6 +574,12 @@ function updateTrayMenu() {
         visible: hook.claudeCodeInstalled(),
         checked: hook.hookStatus(),
         click: (item) => setHookEnabled(item.checked),
+      },
+      {
+        label: trayStatusTitle(),
+        submenu: TRAY_MODES.map(([id, label]) => ({
+          label, type: 'radio', checked: trayMode() === id, click: () => setTrayStatus(id),
+        })),
       },
       {
         label: 'Grootte van de pil',
@@ -595,8 +641,8 @@ function createTray() {
   try {
     // macOS kleurt template-iconen zelf mee met de menubalk
     const file = process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png';
-    const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', file));
-    tray = new Tray(icon);
+    trayIcon = nativeImage.createFromPath(path.join(__dirname, 'assets', file));
+    tray = new Tray(trayIcon);
     tray.on('click', toggleWidget);
     updateTrayMenu();
   } catch {
@@ -626,6 +672,9 @@ function settingsSnapshot() {
   return {
     theme: config.theme,
     pillSize: pillPreset(),
+    trayStatus: trayMode(),
+    trayStatusAvailable: !!tray,
+    trayStatusMac: process.platform === 'darwin',
     sizeDefault: Math.abs(pillScale() - 1) < 0.01 && Math.abs(panelScale() - 1) < 0.01
       && panelCssHeight() === PANEL_HEIGHT.default,
     alwaysOnTop: config.alwaysOnTop,
@@ -648,6 +697,7 @@ function settingsSnapshot() {
 const SETTERS = {
   theme: (v) => applyTheme(v),
   pillSize: (v) => setPillSize(v),
+  trayStatus: (v) => setTrayStatus(v),
   resetSize: () => {
     config.panelHeight = PANEL_HEIGHT.default;
     setScales(1, 1);

@@ -32,6 +32,13 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   5 minuten (anders elke 3).
 - **Per product:** hoe je weekverbruik verdeeld is over Claude Code, Chats en Cowork, en je
   cloudsessietegoed in dollars met vervaldatum.
+- **Menubalk en systeemvak:** op de Mac staan je percentages naast het icoon in de menubalk
+  (bijv. `5u 77% · wk 61%`); op Windows wordt het systeemvakicoon een ring die meekleurt
+  (groen, oranje, rood), met de exacte cijfers als je erop wijst. Kies in de instellingen *Beide*,
+  *5 uur*, *Week* of *Uit*. Zo zie je je limiet ook als de widget verborgen is; hij blijft dan
+  elke 5 minuten bijwerken. Windows 11 verstopt nieuwe icoontjes achter het pijltje `^` in de
+  taakbalk: sleep het icoon naar de taakbalk, of zet het aan bij *Instellingen* → *Persoonlijke
+  instellingen* → *Taakbalk* → *Andere systeemvakpictogrammen*.
 - **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies *Systeem* in de instellingen
   om Windows/macOS te volgen.
 - **Tempo:** bovenaan staat of je in dit tempo de weekreset haalt, zoals op claude.ai.
@@ -70,9 +77,12 @@ verschijnt dan *klik om te herstarten en bij te werken*. Tussendoor zoeken kan v
    *Systeeminstellingen* → *Privacy en beveiliging* en klik onderaan op *Open toch*.
 3. Kies bij de vraag om de sleutelhanger-item “Claude Code-credentials” te gebruiken *Altijd toestaan*.
 
-De Mac-app kan zichzelf niet vervangen (daarvoor is een betaald Apple-certificaat nodig): vindt hij
-bij het opstarten (of via tandwiel → *Controleren*) een nieuwe versie, dan verschijnt bovenin het
-paneel *klik om te downloaden*; installeer dan de nieuwe `.dmg`.
+Ook de Mac-app werkt zichzelf bij (vanaf versie 1.6.0): vindt hij bij het opstarten (of via
+tandwiel → *Controleren*) een nieuwe versie, dan downloadt hij die en verschijnt bovenin het paneel
+*klik om te herstarten en bij te werken*. De app vervangt dan zichzelf in *Apps* en start opnieuw.
+Kan dat niet (bijvoorbeeld als de app niet in *Apps* staat), dan staat er *klik om te downloaden*
+en installeer je de nieuwe `.dmg` zelf. Omdat de app geen betaald Apple-certificaat heeft, kan
+macOS na een update opnieuw vragen of hij de sleutelhanger mag gebruiken: kies *Altijd toestaan*.
 
 ### Na installeren
 
@@ -166,6 +176,9 @@ npm run demo
 | `lib/report.js` | overzicht voor export (CSV en HTML voor de PDF) |
 | `lib/shortcut.js` | toetscombinatie omzetten naar een sneltoets en terug |
 | `lib/alerts.js` | regels voor meldingen en stille uren |
+| `lib/trayicon.js` | ringicoon (Windows) en tekst (menubalk Mac) met de limieten |
+| `lib/updates.js` | nieuwe versies zoeken en installeren |
+| `lib/macupdate.js` | zelf bijwerken op de Mac (dmg downloaden, controleren, omwisselen) |
 | `renderer/` | de interface (pil en paneel) |
 | `bin/launch.js` | start de widget losgekoppeld; toont hem weer als hij al draait |
 | `scripts/hook.js` | hook in `~/.claude/settings.json` zetten of verwijderen |
