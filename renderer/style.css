@@ -145,16 +145,30 @@ body:hover .rz::after { opacity: 0.3; }
     var(--surface);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   animation: pop 0.22s cubic-bezier(.2,.8,.2,1);
-  max-height: calc(100vh - 16px); /* het venster is nooit hoger dan het scherm: dan scrollt het paneel */
+  height: calc(100vh - 16px); /* de hoogte kies je zelf door aan een hoek te slepen */
+  overflow: hidden;
+}
+.panel > * { flex: none; }
+/* Alles onder de tabbladen scrolt; de schuifbalk staat tegen de rechterrand van het paneel. */
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  margin: -2px -14px -14px;
+  padding: 2px 8px 14px 14px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
 }
-.panel::-webkit-scrollbar { width: 6px; }
-.panel::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+.panel-body::-webkit-scrollbar { width: 6px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
 
 .panel-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-radius: 12px; }

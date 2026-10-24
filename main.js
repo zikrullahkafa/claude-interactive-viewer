@@ -30,6 +30,9 @@ const PANEL_BASE_WIDTH = 340; // 324px paneel + 2x8px rand
 const pill = () => ({ width: Math.round(PILL_BASE.width * pillScale()), height: Math.round(PILL_BASE.height * pillScale()) });
 const SNAP_PX = 40; // dichter bij de rand dan dit: vastklikken
 const panelWidth = () => Math.round(PANEL_BASE_WIDTH * panelScale());
+// Paneelhoogte in CSS-pixels (inclusief rand), door de gebruiker gekozen; langere inhoud scrolt.
+const PANEL_HEIGHT = { default: 560, min: 240 };
+const panelCssHeight = () => Math.max(PANEL_HEIGHT.min, Number(config.panelHeight) || PANEL_HEIGHT.default);
 const MARGIN = 16;
 
 if (process.platform === 'linux') {
@@ -81,7 +84,7 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, ackNews: [],
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, ackNews: [],
   shortcut: DEFAULT_SHORTCUT, quietHours: { enabled: false, from: '22:00', to: '08:00' }, lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
@@ -384,7 +387,10 @@ function toggleWidget() {
   else showWidget();
 }
 
-function setExpanded(value, height) {
+// Vensterhoogte van het paneel: gekozen hoogte maal de schaal, nooit hoger dan het scherm.
+const panelWindowHeight = (wa) => Math.min(Math.round(panelCssHeight() * panelScale()), wa.height - 2 * MARGIN);
+
+function setExpanded(value) {
   if (!win) return;
   if (value) {
     const wa = workArea({ x: pillPos.x, y: pillPos.y });
@@ -393,8 +399,7 @@ function setExpanded(value, height) {
       bottom: pillPos.y + pill().height / 2 > wa.y + wa.height / 2,
     };
     win.webContents.setZoomFactor(panelScale());
-    // De interface meet in CSS-pixels; het venster is die maat maal de schaal.
-    const h = Math.min(Math.max(pill().height, Math.round((height || 320) * panelScale())), wa.height - 2 * MARGIN);
+    const h = panelWindowHeight(wa);
     const x = anchor.right ? pillPos.x + pill().width - panelWidth() : pillPos.x;
     const y = anchor.bottom ? pillPos.y + pill().height - h : pillPos.y;
     win.setBounds(clamp({ x, y, width: panelWidth(), height: h }));
@@ -411,17 +416,6 @@ function setExpanded(value, height) {
     saveConfig();
   }
   expanded = value;
-}
-
-function resizePanel(height) {
-  if (!win || !expanded) return;
-  const b = win.getBounds();
-  const wa = workArea({ x: b.x, y: b.y });
-  if (resizeOrigin) return; // tijdens hoek-slepen bepaalt dat de maat
-  const h = Math.min(Math.round(height * panelScale()), wa.height - 2 * MARGIN); // nooit hoger dan het scherm
-  if (h === b.height && b.width === panelWidth()) return;
-  const y = anchor.bottom ? b.y + b.height - h : b.y;
-  win.setBounds(clamp({ x: b.x, y, width: panelWidth(), height: h }));
 }
 
 // ---------- gegevens ----------
@@ -632,7 +626,8 @@ function settingsSnapshot() {
   return {
     theme: config.theme,
     pillSize: pillPreset(),
-    sizeDefault: Math.abs(pillScale() - 1) < 0.01 && Math.abs(panelScale() - 1) < 0.01,
+    sizeDefault: Math.abs(pillScale() - 1) < 0.01 && Math.abs(panelScale() - 1) < 0.01
+      && panelCssHeight() === PANEL_HEIGHT.default,
     alwaysOnTop: config.alwaysOnTop,
     hookAvailable: hook.claudeCodeInstalled(),
     hook: hook.hookStatus(),
@@ -653,7 +648,10 @@ function settingsSnapshot() {
 const SETTERS = {
   theme: (v) => applyTheme(v),
   pillSize: (v) => setPillSize(v),
-  resetSize: () => setScales(1, 1),
+  resetSize: () => {
+    config.panelHeight = PANEL_HEIGHT.default;
+    setScales(1, 1);
+  },
   alwaysOnTop: (v) => {
     config.alwaysOnTop = !!v;
     if (win) win.setAlwaysOnTop(config.alwaysOnTop, 'floating');
@@ -735,9 +733,8 @@ ipcMain.handle('history', (_e, sinceMs) => {
   const since = Number.isFinite(sinceMs) ? sinceMs : Date.now() - 7 * 86400e3;
   return DEMO ? demoHistory(since) : history().read(since);
 });
-ipcMain.on('expand', (_e, height) => setExpanded(true, height));
+ipcMain.on('expand', () => setExpanded(true));
 ipcMain.on('collapse', () => setExpanded(false));
-ipcMain.on('resize', (_e, height) => resizePanel(height));
 ipcMain.on('hide', hideWidget);
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('drag-start', () => {
@@ -790,8 +787,10 @@ function setScales(pillK, panelK) {
       saveConfig();
     } else {
       const w = panelWidth();
-      win.setBounds(clamp({ x: anchor.right ? b.x + b.width - w : b.x, y: b.y, width: w, height: b.height }));
-      win.webContents.send('remeasure'); // hoogte volgt uit de inhoud
+      const h = panelWindowHeight(wa);
+      win.setBounds(clamp({
+        x: anchor.right ? b.x + b.width - w : b.x, y: anchor.bottom ? b.y + b.height - h : b.y, width: w, height: h,
+      }));
     }
   }
   updateTrayMenu();
@@ -805,38 +804,44 @@ function setPillSize(size) {
 
 let resizeOrigin = null;
 
-// `contentHeight` is de hoogte van de paneelinhoud in CSS-pixels (zoals bij 'expand').
-ipcMain.on('resize-start', (_e, corner, contentHeight) => {
+ipcMain.on('resize-start', (_e, corner) => {
   if (!win || !/^(n|s)(e|w)$/.test(corner)) return;
-  resizeOrigin = {
-    corner, cursor: screen.getCursorScreenPoint(), b: win.getBounds(),
-    scale: expanded ? panelScale() : pillScale(), contentHeight: Number(contentHeight) || 0,
-  };
+  resizeOrigin = { corner, cursor: screen.getCursorScreenPoint(), b: win.getBounds(), scale: expanded ? panelScale() : pillScale() };
 });
 
 ipcMain.on('resize-move', () => {
   if (!win || !resizeOrigin) return;
-  const { corner, cursor, b, scale, contentHeight } = resizeOrigin;
+  const { corner, cursor, b, scale } = resizeOrigin;
   const c = screen.getCursorScreenPoint();
   const sx = corner[1] === 'e' ? 1 : -1;
   const sy = corner[0] === 's' ? 1 : -1;
-  const rw = (b.width + sx * (c.x - cursor.x)) / b.width;
-  const rh = (b.height + sy * (c.y - cursor.y)) / b.height;
-  // Pil: horizontaal en verticaal slepen tellen allebei. Paneel: de breedte bepaalt (de hoogte volgt de inhoud).
-  const r = expanded ? rw : (rw + rh) / 2;
+  const dx = sx * (c.x - cursor.x); // positief = groter
+  const dy = sy * (c.y - cursor.y);
   // Niet verder groeien dan de schermrand aan de kant waarheen je sleept.
   const wa = workArea({ x: b.x, y: b.y });
   const roomW = sx > 0 ? wa.x + wa.width - b.x : b.x + b.width - wa.x;
   const roomH = sy > 0 ? wa.y + wa.height - b.y : b.y + b.height - wa.y;
-  const [min, max] = expanded ? PANEL_RANGE : PILL_RANGE;
-  const fit = expanded ? roomW / PANEL_BASE_WIDTH : Math.min(roomW / PILL_BASE.width, roomH / PILL_BASE.height);
-  const next = clampNum(scale * r, [min, Math.max(min, Math.min(max, fit))]);
-  if (expanded) config.panelScale = next;
-  else config.pillScale = next;
+  let next;
+  let height;
+  if (expanded) {
+    // Paneel: de hoek volgt de muis. De breedte bepaalt de schaal (alles blijft in verhouding),
+    // de hoogte hoeveel je ziet; de rest scrolt.
+    const [min, max] = PANEL_RANGE;
+    next = clampNum((b.width + dx) / PANEL_BASE_WIDTH, [min, Math.max(min, Math.min(max, roomW / PANEL_BASE_WIDTH))]);
+    const minH = PANEL_HEIGHT.min * next;
+    height = Math.round(clampNum(b.height + dy, [minH, Math.max(minH, Math.min(roomH, wa.height - 2 * MARGIN))]));
+    config.panelScale = next;
+    config.panelHeight = Math.round(height / next);
+  } else {
+    // Pil: horizontaal en verticaal slepen tellen allebei; de verhouding blijft gelijk.
+    const r = ((b.width + dx) / b.width + (b.height + dy) / b.height) / 2;
+    const [min, max] = PILL_RANGE;
+    const fit = Math.min(roomW / PILL_BASE.width, roomH / PILL_BASE.height);
+    next = clampNum(scale * r, [min, Math.max(min, Math.min(max, fit))]);
+    config.pillScale = next;
+    height = pill().height;
+  }
   const width = expanded ? panelWidth() : pill().width;
-  const height = expanded
-    ? Math.min(Math.round((contentHeight || b.height / scale) * next), wa.height - 2 * MARGIN, roomH)
-    : pill().height;
   win.webContents.setZoomFactor(next);
   // De hoek tegenover de hoek waaraan je sleept, blijft op zijn plek.
   win.setBounds({
@@ -855,8 +860,6 @@ ipcMain.on('resize-end', () => {
   if (!expanded) {
     pillPos = { x: b.x, y: b.y };
     config.position = pillPos;
-  } else {
-    win.webContents.send('remeasure');
   }
   saveConfig();
   updateTrayMenu();

@@ -810,6 +810,7 @@ function setView(next) {
   panel.dataset.view = view;
   for (const t of $$('.tab')) t.classList.toggle('active', t.dataset.view === view);
   for (const v of $$('.view')) v.hidden = v.dataset.view !== view;
+  $('.panel-body').scrollTop = 0;
   if (view === 'projects') loadProjects();
   else clearTimeout(projTimer);
   if (view === 'tips') loadTips();
@@ -828,9 +829,6 @@ for (const b of $$('.period')) {
 
 // ---------- in- en uitklappen ----------
 
-// Gewenste hoogte = volledige inhoud (scrollHeight), ook als het paneel al op schermhoogte is begrensd.
-const panelHeight = () => panel.scrollHeight + 2 + 16; // + rand + body-padding
-
 // Mappen alleen tonen als er de afgelopen 30 dagen lokale Code- of Cowork-sessies zijn.
 async function updateMappenTab() {
   let has = true;
@@ -848,7 +846,7 @@ function expand() {
   updateMappenTab();
   pill.hidden = true;
   panel.hidden = false;
-  window.widget.expand(panelHeight());
+  window.widget.expand(); // het paneel houdt zijn eigen hoogte; langere inhoud scrolt
   if (view === 'settings') openSettings();
   else setView(view); // actuele gegevens laden voor het open tabblad
 }
@@ -863,12 +861,6 @@ function collapse(tellMain = true) {
   pill.hidden = false;
   if (tellMain) window.widget.collapse();
 }
-
-const sizeWatcher = new ResizeObserver(() => {
-  if (isExpanded) window.widget.resize(panelHeight());
-});
-sizeWatcher.observe(panel);
-for (const child of panel.children) sizeWatcher.observe(child); // inhoud kan groeien terwijl het paneel begrensd is
 
 // ---------- slepen vs. klikken ----------
 
@@ -917,7 +909,7 @@ for (const grip of $$('.rz')) {
     active = true;
     grip.setPointerCapture(e.pointerId);
     document.body.classList.add('resizing');
-    window.widget.resizeStart(grip.dataset.corner, isExpanded ? panelHeight() : 0);
+    window.widget.resizeStart(grip.dataset.corner);
   });
   grip.addEventListener('pointermove', () => active && window.widget.resizeMove());
   grip.addEventListener('pointerup', end);
@@ -1145,9 +1137,6 @@ $('#update').addEventListener('click', () => window.widget.installUpdate());
 window.widget.onUpdate(renderUpdate);
 window.widget.onOpenPanel(() => expand()); // klik op een melding opent het paneel
 window.widget.onForceCollapse(() => collapse(false));
-window.widget.onRemeasure(() => {
-  if (isExpanded) window.widget.resize(panelHeight());
-});
 
 window.widget.getState().then((s) => {
   state = s;
