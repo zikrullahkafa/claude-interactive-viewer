@@ -98,10 +98,11 @@ body[data-fade] .pill {
   opacity: var(--fade);
   transition: transform 0.18s cubic-bezier(.2,.8,.2,1), opacity 0.6s ease 1.2s;
 }
-body[data-fade]:hover .pill {
+body[data-fade]:hover .pill, body[data-fade].just-shown .pill {
   opacity: 1;
   transition: transform 0.18s cubic-bezier(.2,.8,.2,1), opacity 0.15s ease;
 }
+.just-shown .pill { animation: pop 0.3s cubic-bezier(.2,.8,.2,1); }
 .pill:active { transform: scale(0.98); }
 
 .mini-rings { width: 38px; height: 38px; flex: none; }

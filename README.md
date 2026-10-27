@@ -27,7 +27,7 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
   een testmelding, exporteren en zoeken naar updates.
 - **Exporteren:** een overzicht van de laatste 4 weken als PDF (per week, per dag en per map) of de
   cijfers per dag als CSV voor Excel (puntkomma's en decimale komma's, zoals Nederlandse Excel verwacht).
-- **Meldingen** (Windows/Mac): bij 80% en 90% van je 5-uurs- of weeklimiet, als je week te snel
+- **Meldingen** (Windows/Mac): één keer per limietvenster bij 80% en één keer bij 90% van je 5-uurs- of weeklimiet, als je week te snel
   opraakt, na een reset, bij iets nieuws in je account (zoals een gratis reset) en als je cloudtegoed
   bijna verloopt. Per soort aan of uit in de instellingen. Verborgen kijkt de widget elke
   5 minuten (anders elke 3).
@@ -123,8 +123,8 @@ en Mac-versie en publiceert ze.
 |---|---|
 | Inklappen | klik op de bovenbalk van het paneel (bij „Claude Meter”), of `Esc` |
 | Groter of kleiner | sleep aan een hoek (de grepen verschijnen als je muis boven de widget is) |
-| Verbergen | ×-knop in het paneel, of rechtermuisknop → Verbergen |
-| Weer tonen | klik op het icoon in het systeemvak, of de sneltoets (standaard `Ctrl+Alt+U`, op de Mac `⌘⌥U`; te wijzigen in de instellingen), of start Claude Code opnieuw |
+| Verbergen | ×-knop in het paneel, of rechtermuisknop → Verbergen (de eerste keer legt een melding uit hoe je hem terughaalt) |
+| Weer tonen | klik op het icoon in het systeemvak (Mac: menubalk → *Widget tonen*); dat haalt hem altijd tevoorschijn, ook als hij achter een venster of op een losgekoppeld scherm stond. Of de sneltoets (standaard `Ctrl+Alt+U`, op de Mac `⌘⌥U`; te wijzigen in de instellingen), of start Claude Code opnieuw |
 | Helemaal afsluiten | systeemvak → Afsluiten, of rechtermuisknop → Afsluiten |
 
 In het systeemvakmenu kun je ook “Altijd bovenop” uitzetten.

@@ -349,6 +349,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false, // verborgen niet afremmen, zodat hij bij tonen meteen goed tekent
     },
   });
   win.setAlwaysOnTop(config.alwaysOnTop, 'floating');
@@ -366,7 +367,19 @@ function createWindow() {
 
 function showWidget() {
   if (!win) createWindow();
-  else win.showInactive();
+  else {
+    // Terug op een zichtbaar scherm (bijv. nadat een tweede scherm is losgekoppeld).
+    const b = clamp(win.getBounds());
+    win.setBounds(b);
+    if (!expanded) pillPos = { x: b.x, y: b.y };
+    win.showInactive();
+    // Windows vergeet na verbergen soms 'altijd bovenop': opnieuw zetten en naar voren halen,
+    // anders verschijnt de widget achter andere vensters en lijkt hij weg.
+    win.setAlwaysOnTop(config.alwaysOnTop, 'floating');
+    win.moveTop();
+    win.webContents.invalidate();
+    win.webContents.send('shown'); // even helder, ook als hij doorzichtig in rust staat
+  }
   if (Date.now() - lastFetch > MIN_MANUAL_MS) refresh(false);
   else broadcast();
   updateTrayMenu();
@@ -660,7 +673,7 @@ function createTray() {
     const file = process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png';
     trayIcon = nativeImage.createFromPath(path.join(__dirname, 'assets', file));
     tray = new Tray(trayIcon);
-    tray.on('click', toggleWidget);
+    tray.on('click', showWidget); // klik op het icoon = altijd tevoorschijn (verbergen: × of het menu)
     updateTrayMenu();
   } catch {
     tray = null; // sommige Linux-bureaubladen hebben geen systeemvak; sneltoets werkt dan nog
@@ -804,7 +817,16 @@ ipcMain.handle('history', (_e, sinceMs) => {
 });
 ipcMain.on('expand', () => setExpanded(true));
 ipcMain.on('collapse', () => setExpanded(false));
-ipcMain.on('hide', hideWidget);
+// Verbergen met het kruisje: de eerste keer uitleggen hoe je hem terughaalt.
+ipcMain.on('hide', () => {
+  hideWidget();
+  if (config.hideHintShown || !Notification.isSupported()) return;
+  config.hideHintShown = true;
+  saveConfig();
+  const where = process.platform === 'darwin' ? 'klik op Claude Meter in de menubalk' : 'klik op het ringetje in het systeemvak (rechtsonder)';
+  const keys = config.shortcut && config.shortcut !== 'none' ? ` of druk ${shortcutLabel()}` : '';
+  showNotification('Claude Meter is verborgen', `Terughalen: ${where}${keys}.`);
+});
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('drag-start', () => {
   if (!win) return;

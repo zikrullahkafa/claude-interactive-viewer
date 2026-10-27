@@ -33,7 +33,13 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   op (`limietverloop.jsonl` in userData: tijd, 5 uur, week, aandelen per product) voor de grafieken,
   het verbruik per product en de patronen. Geschiedenis begint dus pas bij installatie.
 - `lib/alerts.js`: regels voor meldingen (pure functie, getest); `main.js` toont ze en onthoudt wat
-  al gemeld is (`config.notified`). Verborgen wordt elke 5 min opgehaald als meldingen aan staan.
+  al gemeld is (`config.notified`, sleutel `soort@ms`). Let op: `resets_at` van de API verschuift
+  per meting een fractie (microseconden, steeds opnieuw berekend); vergelijk resettijden daarom
+  nooit als tekst maar met een marge (5 uur: 1 uur, week: 1 dag). Verborgen wordt elke 5 min
+  opgehaald als meldingen aan staan.
+- Verbergen/tonen: klik op het systeemvakicoon toont altijd (geen wissel); `showWidget` zet het
+  venster terug op een zichtbaar scherm, opnieuw bovenop (`moveTop`) en stuurt `shown` (even helder).
+  De eerste keer verbergen met × geeft één melding hoe je hem terughaalt (`config.hideHintShown`).
 - `lib/updates.js`: Windows via electron-updater. Mac via `lib/macupdate.js` (Squirrel.Mac kan
   niet zonder echte ondertekening): dmg uit de release downloaden, sha512 uit `latest-mac.yml`
   controleren, met `hdiutil`/`ditto` uitpakken en versie nakijken (`defaults read`); na klikken
