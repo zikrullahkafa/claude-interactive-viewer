@@ -953,6 +953,15 @@ function applyFade(mode) {
   }
 }
 window.widget.onFade(applyFade);
+// Net weer getoond: even helder (en een klein sprongetje), zodat je ziet waar hij staat.
+let shownTimer = null;
+window.widget.onShown(() => {
+  document.body.classList.remove('just-shown');
+  void document.body.offsetWidth; // animatie opnieuw starten
+  document.body.classList.add('just-shown');
+  clearTimeout(shownTimer);
+  shownTimer = setTimeout(() => document.body.classList.remove('just-shown'), 2500);
+});
 $('#btn-theme').addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   applyTheme(next);
