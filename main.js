@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification, dialog, clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
@@ -9,6 +9,7 @@ const { createHistory, productUsage, patterns } = require('./lib/history');
 const { createUpdater } = require('./lib/updates');
 const alerts = require('./lib/alerts');
 const trayicon = require('./lib/trayicon');
+const fullscreen = require('./lib/fullscreen');
 const hook = require('./scripts/hook');
 const { toAccelerator, displayAccelerator, DEFAULT_SHORTCUT } = require('./lib/shortcut');
 const report = require('./lib/report');
@@ -87,7 +88,7 @@ const configFile = () => path.join(app.getPath('userData'), 'widget.json');
 const rawFile = () => path.join(app.getPath('userData'), 'laatste-antwoord.json');
 let config = {
   position: null, alwaysOnTop: true, theme: 'dark', openClaude: false, hookOffered: false, claudeAppId: null,
-  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, trayStatus: 'both', idleFade: 'light', ackNews: [],
+  notify: { ...alerts.DEFAULTS }, notified: {}, pillScale: 1, panelScale: 1, panelHeight: PANEL_HEIGHT.default, trayStatus: 'both', idleFade: 'light', hideInFullscreen: true, ackNews: [],
   shortcut: DEFAULT_SHORTCUT, quietHours: { enabled: false, from: '22:00', to: '08:00' }, lastUsage: null,
 };
 const HIDDEN_POLL_MS = 5 * 60 * 1000; // verborgen maar met meldingen aan: rustiger doorkijken
@@ -353,7 +354,7 @@ function createWindow() {
     },
   });
   win.setAlwaysOnTop(config.alwaysOnTop, 'floating');
-  if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: !config.hideInFullscreen });
   win.webContents.on('did-finish-load', () => win.webContents.setZoomFactor(expanded ? panelScale() : pillScale()));
   // Ctrl/⌘ + plus/min/0 en Ctrl+scrollen zouden de inhoud los van het venster zoomen.
   win.webContents.on('before-input-event', (e, input) => {
@@ -555,6 +556,43 @@ function setTrayStatus(mode) {
   if (trayStatusOn() && win && !win.isVisible()) refresh(false); // verborgen: (weer) bijhouden
 }
 
+// ---------- volledig scherm (games, presentaties, video's) ----------
+
+let fullscreenWatcher = null;
+let hiddenForFullscreen = false; // alleen terugzetten wat we zelf verborgen
+
+// macOS: de widget doet gewoon niet mee op schermen met een app op volledig scherm.
+// Windows: lib/fullscreen.js meldt wanneer een programma volledig scherm gaat of ermee stopt.
+function applyFullscreenHide() {
+  const on = !!config.hideInFullscreen;
+  if (process.platform === 'darwin') {
+    if (win) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: !on });
+    return;
+  }
+  if (process.platform !== 'win32') return;
+  if (on && !fullscreenWatcher) {
+    fullscreenWatcher = fullscreen.startWatcher((isFull) => {
+      if (!win) return;
+      if (isFull) {
+        if (win.isVisible()) {
+          hiddenForFullscreen = true;
+          hideWidget();
+        }
+      } else if (hiddenForFullscreen) {
+        hiddenForFullscreen = false;
+        showWidget();
+      }
+    });
+  } else if (!on && fullscreenWatcher) {
+    fullscreenWatcher.stop();
+    fullscreenWatcher = null;
+    if (hiddenForFullscreen) {
+      hiddenForFullscreen = false;
+      showWidget();
+    }
+  }
+}
+
 // Rustig: de pil vervaagt als je muis er niet op staat ('off', 'light' of 'strong'); de renderer doet de rest.
 const FADE_MODES = [['off', 'Uit'], ['light', 'Iets'], ['strong', 'Veel']];
 const fadeMode = () => (FADE_MODES.some(([id]) => id === config.idleFade) ? config.idleFade : 'light');
@@ -604,6 +642,13 @@ function updateTrayMenu() {
         submenu: TRAY_MODES.map(([id, label]) => ({
           label, type: 'radio', checked: trayMode() === id, click: () => setTrayStatus(id),
         })),
+      },
+      {
+        label: 'Verbergen bij volledig scherm',
+        type: 'checkbox',
+        visible: process.platform === 'win32' || process.platform === 'darwin',
+        checked: config.hideInFullscreen,
+        click: (item) => SETTERS.hideInFullscreen(item.checked),
       },
       {
         label: 'Doorzichtig in rust',
@@ -693,6 +738,16 @@ ipcMain.handle('get-state', () => ({
   update: updateState, version: app.getVersion(), idleFade: fadeMode(),
 }));
 ipcMain.on('install-update', () => updater && updater.install());
+// Tips: tekst kopiëren en bronnen openen (alleen pagina's van Anthropic).
+ipcMain.handle('copy-text', (_e, text) => clipboard.writeText(String(text || '').slice(0, 5000)));
+ipcMain.on('open-link', (_e, url) => {
+  try {
+    const u = new URL(String(url));
+    if (u.protocol === 'https:' && ['support.claude.com', 'code.claude.com', 'claude.com'].includes(u.hostname)) shell.openExternal(u.href);
+  } catch {
+    // ongeldige link: niets doen
+  }
+});
 ipcMain.on('refresh', () => refresh(true));
 ipcMain.on('set-theme', (_e, theme) => applyTheme(theme));
 
@@ -704,6 +759,8 @@ function settingsSnapshot() {
     pillSize: pillPreset(),
     trayStatus: trayMode(),
     idleFade: fadeMode(),
+    hideInFullscreen: config.hideInFullscreen,
+    hideInFullscreenAvailable: process.platform === 'win32' || process.platform === 'darwin',
     trayStatusAvailable: !!tray,
     trayStatusMac: process.platform === 'darwin',
     sizeDefault: Math.abs(pillScale() - 1) < 0.01 && Math.abs(panelScale() - 1) < 0.01
@@ -730,6 +787,12 @@ const SETTERS = {
   pillSize: (v) => setPillSize(v),
   trayStatus: (v) => setTrayStatus(v),
   idleFade: (v) => setIdleFade(v),
+  hideInFullscreen: (v) => {
+    config.hideInFullscreen = !!v;
+    saveConfig();
+    applyFullscreenHide();
+    updateTrayMenu();
+  },
   resetSize: () => {
     config.panelHeight = PANEL_HEIGHT.default;
     setScales(1, 1);
@@ -990,7 +1053,10 @@ app.on('activate', () => {
   if (app.isReady()) showWidget();
 });
 app.on('window-all-closed', (e) => e.preventDefault());
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  if (fullscreenWatcher) fullscreenWatcher.stop();
+});
 
 if (IS_PRIMARY) app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
@@ -1013,6 +1079,7 @@ if (IS_PRIMARY) app.whenReady().then(() => {
   openClaudeApp(process.argv);
   createTray();
   createWindow();
+  applyFullscreenHide();
   if (!registerShortcut(config.shortcut)) registerShortcut(DEFAULT_SHORTCUT);
   refresh(false);
 });

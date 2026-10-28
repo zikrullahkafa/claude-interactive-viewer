@@ -334,67 +334,96 @@ async function loadProjects() {
 }
 
 // ---------- tips ----------
+// De inhoud staat in lib/tips.js (ook getest); hier alleen de weergave.
 
-function tip(icon, level, title, body) {
-  const li = el('li', `tip ${level}`);
-  const text = el('div');
-  text.append(el('div', 'tip-title', title), el('div', 'tip-body', body));
-  li.append(el('div', 'tip-icon', icon), text);
+// "**vet**" in tiptekst wordt <b>; tekst wordt nooit als HTML gelezen.
+function rich(text) {
+  const span = el('span');
+  String(text).split('**').forEach((part, i) => span.append(i % 2 ? el('b', null, part) : part));
+  return span;
+}
+
+function copyButton(text) {
+  const b = el('button', 'copy-btn', 'Kopieer');
+  b.type = 'button';
+  b.addEventListener('click', async () => {
+    await window.widget.copyText(text);
+    b.textContent = 'Gekopieerd ✓';
+    setTimeout(() => (b.textContent = 'Kopieer'), 1500);
+  });
+  return b;
+}
+
+const EFFECT_LABEL = { 3: 'groot', 2: 'middel', 1: 'klein' };
+
+function effectBadge(effect) {
+  const b = el('span', `effect e${effect}`);
+  b.append(el('i'), el('i'), el('i'), ` ${EFFECT_LABEL[effect]}`);
+  b.title = `Effect: ${EFFECT_LABEL[effect]}`;
+  return b;
+}
+
+function tipCard(t, open) {
+  const card = el('details', 'tip-card');
+  card.open = open;
+  const head = el('summary');
+  const meta = el('div', 'tip-meta');
+  meta.append(el('span', 'tip-area', t.areaLabel), effectBadge(t.effect));
+  head.append(meta, el('div', 'tip-title', t.title));
+  card.append(head);
+
+  const body = el('div', 'tip-content');
+  body.append(el('p', 'tip-why', t.why));
+  if (t.personal) {
+    const me = el('p', 'tip-personal');
+    me.append(el('b', null, 'Bij jou: '), t.personal);
+    body.append(me);
+  }
+  body.append(el('div', 'tip-how', 'Zo doe je het'));
+  const ol = el('ol', 'tip-steps');
+  for (const step of t.steps) {
+    const li = el('li');
+    li.append(rich(typeof step === 'string' ? step : step.text));
+    if (step.prompt || step.cmd) {
+      const snip = el('div', step.cmd ? 'snippet cmd' : 'snippet');
+      snip.append(el(step.cmd ? 'code' : 'pre', null, step.prompt || step.cmd), copyButton(step.prompt || step.cmd));
+      li.append(snip);
+    }
+    ol.append(li);
+  }
+  body.append(ol);
+  const eff = el('p', 'tip-effect');
+  eff.append(el('b', null, `Effect: ${EFFECT_LABEL[t.effect]}. `), t.effectText);
+  body.append(eff);
+  card.append(body);
+  return card;
+}
+
+function statusTip(level, title, text) {
+  const li = el('li', `tip-status ${level}`);
+  li.append(el('div', 'tip-title', title), el('div', 'tip-body', text));
   return li;
 }
 
-function buildTips(u, d) {
+function renderTips(u, data) {
   const out = [];
   const pace = weekPace(u);
-  if (pace) out.push(tip('📈', pace.level, 'Weektempo', pace.text));
+  if (pace) out.push(statusTip(pace.level, 'Weektempo', pace.text));
   if (u.fiveHour && u.fiveHour.percent >= 80) {
-    out.push(tip('⏳', 'lvl-crit', '5-uurslimiet bijna op', `Grote taken kun je beter na de reset doen (${formatReset(u.fiveHour.resetsAt)}).`));
+    out.push(statusTip('lvl-crit', '5-uurslimiet bijna op', `Grote taken kun je beter na de reset doen (${formatReset(u.fiveHour.resetsAt)}).`));
   }
-
-  const s = d && d.summary;
-  if (!s || !s.messages) {
-    const where = (u.products ? u.products.rows : [])
-      .filter((r) => r.percent > 0 && r.key !== 'claude_code')
-      .map((r) => `${r.name} ${r.percent}%`);
-    out.push(
-      tip('💬', 'lvl-ok', where.length ? `Je verbruik zit in ${where.join(' en ')}` : 'Je verbruik zit in chats en Cowork',
-        'Daarvan staan geen details op je computer. Wat helpt: per taak een nieuw gesprek of een nieuwe Cowork-sessie beginnen (elk bericht stuurt het hele gesprek opnieuw mee), vaste bestanden in een project zetten in plaats van ze steeds opnieuw te uploaden, en voor eenvoudig werk Sonnet of een lagere effort kiezen.')
-    );
-    return out;
-  }
-
-  const top = d.projects[0];
-  if (top && d.projects.length > 1) {
-    out.push(tip('📁', 'lvl-ok', 'Grootste map', `${top.name} (${top.source}) is ${share(top.cost, s.cost)}% van je Code- en Cowork-verbruik deze week (${money(top.cost)} API-waarde).`));
-  }
-
-  const heavy = s.efforts.filter((e) => ['high', 'xhigh', 'max'].includes(e.name)).reduce((a, e) => a + e.cost, 0);
-  if (share(heavy, s.cost) >= 50) {
-    out.push(tip('🎚️', 'lvl-warn', 'Veel werk op hoge effort',
-      `${share(heavy, s.cost)}% van je verbruik draait op effort high of hoger. Voor routinewerk (kleine aanpassingen, uitleg, opmaak) is medium of low vaak genoeg. Zet effort alleen hoog voor lastige problemen.`));
-  }
-  if (s.output && share(s.thinking, s.output) >= 50) {
-    out.push(tip('🧠', 'lvl-warn', 'Veel denkwerk',
-      `${share(s.thinking, s.output)}% van de uitvoer is denken. Een lagere effort maakt antwoorden korter en goedkoper bij eenvoudige vragen.`));
-  }
-
-  const premium = s.models.filter((m) => ['Opus', 'Fable', 'Mythos'].includes(m.name)).reduce((a, m) => a + m.cost, 0);
-  if (share(premium, s.cost) >= 60) {
-    out.push(tip('🧩', 'lvl-warn', 'Vooral Opus',
-      `${share(premium, s.cost)}% van je verbruik is Opus (of zwaarder). Sonnet 5.5 kost per token de helft van Opus 5.5; gebruik het voor routinetaken en houd Opus voor ontwerp en lastig debugwerk.`));
-  }
-
-  const avgContext = (s.input + s.cacheRead + s.cacheWrite) / s.messages;
-  if (avgContext > 120000) {
-    out.push(tip('📚', 'lvl-warn', 'Lange sessies',
-      `Elk antwoord leest gemiddeld ${formatTokens(avgContext)} tokens context. Begin per taak een nieuwe sessie, of gebruik /clear of /compact als een sessie lang wordt.`));
-  }
-  if (share(s.cacheWrite * 1.25, s.input + s.cacheRead * 0.1 + s.cacheWrite * 1.25) >= 40) {
-    out.push(tip('📝', 'lvl-ok', 'Veel nieuwe context',
-      'Een groot deel gaat op aan nieuwe context in de cache schrijven. Laat Claude gericht bestanden lezen in plaats van hele mappen, en houd CLAUDE.md beknopt.'));
-  }
-  if (out.length <= 2) out.push(tip('✅', 'lvl-ok', 'Efficiënt bezig', 'Geen duidelijke verspilling gevonden in je Code- en Cowork-sessies van deze week.'));
-  return out;
+  const { mix, tips } = window.Tips.buildTips(u, data);
+  const intro = el('li', 'tip-intro');
+  intro.append(mix.length
+    ? `Je verbruik deze week: ${mix.map((m) => `${m.name} ${m.percent}%`).join(' · ')}. De tips staan op volgorde van wat bij jou het meest oplevert.`
+    : 'De tips staan op volgorde van wat meestal het meest oplevert.');
+  out.push(intro);
+  tips.forEach((t, i) => {
+    const li = el('li');
+    li.append(tipCard(t, i < 2));
+    out.push(li);
+  });
+  $('#tips').replaceChildren(...out);
 }
 
 async function loadTips() {
@@ -405,9 +434,17 @@ async function loadTips() {
     const since = periodStart();
     period = saved;
     data = await window.widget.projects(since);
-  } catch { /* zonder logboeken alleen limiet-tips */ }
-  $('#tips').replaceChildren(...buildTips(state.usage || {}, data));
+  } catch { /* zonder logboeken alleen de algemene tips */ }
+  renderTips(state.usage || {}, data);
 }
+
+// Bronnen onder de tips (alleen pagina's van Anthropic).
+$('#tip-sources').replaceChildren(...window.Tips.SOURCES.map((src) => {
+  const a = el('button', 'link-btn', src.label);
+  a.type = 'button';
+  a.addEventListener('click', () => window.widget.openLink(src.url));
+  return a;
+}));
 
 // ---------- verloop (grafieken) ----------
 
@@ -1000,6 +1037,7 @@ function renderSettings(s) {
   $('#row-hook').hidden = !s.hookAvailable;
   $('#row-openclaude').hidden = !s.openClaudeAvailable;
   $('#row-tray-status').hidden = !s.trayStatusAvailable;
+  $('#row-fullscreen').hidden = !s.hideInFullscreenAvailable;
   $('#tray-status-title').textContent = s.trayStatusMac ? 'Menubalk' : 'Systeemvak';
   $('#tray-status-hint').textContent = s.trayStatusMac ? 'Naast het icoon' : 'Ring in het icoon';
   const group = $('#notify-group');

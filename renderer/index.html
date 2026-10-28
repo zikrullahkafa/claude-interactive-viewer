@@ -147,6 +147,7 @@
           <button class="link-btn" id="btn-size-reset" title="Pil en paneel terug naar de standaardgrootte">Standaardgrootte</button>
         </div>
         <label class="set-row"><span>Altijd bovenop</span><input type="checkbox" class="switch" data-setting="alwaysOnTop"></label>
+        <label class="set-row" id="row-fullscreen"><span>Verbergen bij volledig scherm<small>Tijdens games, presentaties en video's</small></span><input type="checkbox" class="switch" data-setting="hideInFullscreen"></label>
         <div class="set-row"><span>Sneltoets<small id="shortcut-hint">Tonen of verbergen, vanuit elk programma</small></span>
           <span class="shortcut-ctl">
             <button class="kbd-btn" id="btn-shortcut" title="Klik en druk op een nieuwe combinatie">–</button>
@@ -277,9 +278,12 @@
     <div class="view" data-view="tips" hidden>
       <ul id="tips" class="tips"></ul>
       <p class="note">
-        Tips op basis van je limieten en je Code- en Cowork-sessies van deze week.
-        Gewone chats staan niet op je computer en tellen hier niet mee.
+        Knoppen en menu's zoals de Claude-app en Claude Code ze in oktober 2026 noemen; Anthropic past
+        de app soms aan. De effecten zijn schattingen: Anthropic maakt niet bekend hoeveel elke handeling
+        precies van je limiet gebruikt. Persoonlijke cijfers komen uit je limieten van deze week en je
+        sessies op deze computer; gewone chats staan niet op je computer.
       </p>
+      <p class="note tip-sources-wrap">Bronnen (Anthropic): <span id="tip-sources" class="tip-sources"></span></p>
     </div>
 
     <footer class="panel-foot">
@@ -295,6 +299,7 @@
   <div class="rz rz-sw" data-corner="sw" title="Sleep om groter of kleiner te maken"></div>
   <div class="rz rz-se" data-corner="se" title="Sleep om groter of kleiner te maken"></div>
 
+  <script src="../lib/tips.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
