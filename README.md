@@ -43,9 +43,16 @@ hebt gebruikt. Hij start automatisch mee als je Claude Code opent.
 - **Thema:** standaard donker; wisselen met de maan/zon-knop, of kies *Systeem* in de instellingen
   om Windows/macOS te volgen.
 - **Tempo:** bovenaan staat of je in dit tempo de weekreset haalt, zoals op claude.ai.
-- **Tabblad Tips:** aanwijzingen om zuiniger te werken, afgeleid uit je limieten en je Claude
-  Code-sessies van deze week (effort-levels, modelkeuze, lengte van sessies, denkwerk).
+- **Tabblad Tips:** per tip kort wat het is en waarom het helpt, dan stap voor stap hoe (welk
+  scherm, welke knop, welk commando of welke prompt, met een kopieerknop) en hoeveel effect het
+  heeft. Op volgorde van wat bij jou het meest oplevert: naar je verdeling over Chats, Cowork en
+  Claude Code van deze week, en voor Claude Code naar je eigen sessies (modelkeuze, effort,
+  denkwerk, lengte van de context). Met links naar de bronnen bij Anthropic.
 - **Slepen** om hem te verplaatsen; de plek wordt onthouden.
+- **Volledig scherm:** draait er een game, presentatie of video op volledig scherm, dan gaat de
+  widget vanzelf weg en komt hij daarna terug. Op Windows kijkt daarvoor, zolang Claude Meter open
+  is, een klein PowerShell-lusje elke 2 seconden mee (het stopt met de app); op de Mac doet de widget
+  gewoon niet mee op schermen met een app op volledig scherm. Uit te zetten in de instellingen.
 - **Doorzichtig in rust:** staat je muis even niet op de pil, dan vervaagt hij (*Iets* of *Veel*);
   wijs hem aan en hij is meteen weer helder. Het paneel vervaagt nooit. Uitzetten in de instellingen.
 - **Groter of kleiner:** sleep aan een hoek van de pil of het paneel; de hoek tegenover de hoek
@@ -180,6 +187,8 @@ npm run demo
 | `lib/shortcut.js` | toetscombinatie omzetten naar een sneltoets en terug |
 | `lib/alerts.js` | regels voor meldingen en stille uren |
 | `lib/trayicon.js` | ringicoon (Windows) en tekst (menubalk Mac) met de limieten |
+| `lib/tips.js` | de tips: wat, waarom, stappen en effect, gesorteerd voor deze gebruiker |
+| `lib/fullscreen.js` | Windows: merken dat een programma op volledig scherm draait |
 | `lib/updates.js` | nieuwe versies zoeken en installeren |
 | `lib/macupdate.js` | zelf bijwerken op de Mac (dmg downloaden, controleren, omwisselen) |
 | `renderer/` | de interface (pil en paneel) |

@@ -434,18 +434,56 @@ label.set-row { cursor: pointer; }
 
 /* ---------- tips ---------- */
 
-.tips { list-style: none; padding: 0; display: grid; gap: 8px; }
-.tip {
-  display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start;
-  padding: 11px 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border);
-}
-.tip-icon {
-  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 15px;
-  background: color-mix(in srgb, var(--c, var(--accent)) 16%, transparent);
+.tips { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.tip-intro { font-size: 11.5px; color: var(--text-2); line-height: 1.45; padding: 0 2px; }
+.tip-status {
+  padding: 10px 12px; border-radius: 14px; background: var(--surface-2);
+  border: 1px solid var(--border); border-left: 3px solid var(--c, var(--ok));
 }
 .tip-title { font-weight: 650; font-size: 12.5px; }
 .tip-body { font-size: 11.5px; color: var(--text-2); margin-top: 2px; line-height: 1.45; }
 .tip-body b { color: var(--text); }
+
+/* Tip als uitklapkaart: kop (gebied, effect, titel), daarna waarom, stappen en effect. */
+.tip-card { border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+.tip-card > summary {
+  list-style: none; cursor: pointer; position: relative;
+  display: grid; gap: 3px; padding: 10px 30px 10px 12px; border-radius: 14px;
+}
+.tip-card > summary::-webkit-details-marker { display: none; }
+.tip-card > summary::after {
+  content: ""; position: absolute; right: 13px; top: 50%; width: 6px; height: 6px;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: translateY(-75%) rotate(45deg); transition: transform 0.15s;
+}
+.tip-card[open] > summary::after { transform: translateY(-25%) rotate(-135deg); }
+.tip-card > summary:hover .tip-title { color: var(--text); opacity: 0.85; }
+.tip-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tip-area { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.effect { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 600; color: var(--text-2); }
+.effect i { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.effect.e3 i, .effect.e2 i:nth-child(-n+2), .effect.e1 i:first-child { background: var(--ok); }
+.tip-content { padding: 0 12px 12px; font-size: 11.5px; line-height: 1.5; color: var(--text-2); }
+.tip-content p { margin: 0 0 8px; }
+.tip-personal { padding: 6px 8px; border-radius: 8px; color: var(--text); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.tip-how { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 2px 0 4px; }
+.tip-steps { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 6px; }
+.tip-steps b, .tip-effect b { color: var(--text); }
+.snippet {
+  margin-top: 4px; display: flex; gap: 6px; align-items: flex-start;
+  padding: 6px 6px 6px 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border);
+}
+.snippet pre, .snippet code {
+  flex: 1; min-width: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
+  font-family: inherit; font-size: 11.5px; line-height: 1.45; color: var(--text);
+}
+.snippet code { font: 11px/1.45 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; } /* commando's */
+.copy-btn {
+  flex: none; border: 0; border-radius: 6px; padding: 3px 7px; cursor: pointer;
+  font: inherit; font-size: 10.5px; font-weight: 600; background: var(--surface-3); color: var(--text-2);
+}
+.copy-btn:hover { color: var(--text); }
+.tip-sources .link-btn { margin-right: 8px; font-size: 10.5px; }
 
 /* ---------- projecten ---------- */
 

@@ -46,6 +46,15 @@ Alles wat de gebruiker ziet is Nederlands; code-identifiers Engels; commentaar N
   wisselt een los shellscript de app om (oude terug bij een fout) en start hem met `open`. Kan de
   app zichzelf niet vervangen (niet schrijfbaar, AppTranslocation), dan downloadpagina.
   Alleen bij opstarten (na 15 s) en via *Controleren* in de instellingen; geen periodieke controle.
+- `lib/tips.js`: inhoud van het tabblad Tips (pure functie, getest; ook als `<script>` in de renderer,
+  dan `window.Tips`). Per tip: wat, waarom, stappen (tekst, `prompt` of `cmd` met kopieerknop),
+  effect 1–3 met uitleg. Knopnamen en commando's komen uit Anthropic's Help Center en Claude
+  Code-documentatie (`SOURCES`, stand oktober 2026); controleer ze als Anthropic de app aanpast.
+  Effecten zijn schattingen (API-prijzen, eigen logboeken), nooit verzonnen percentages.
+- Volledig scherm: `config.hideInFullscreen`. Windows: `lib/fullscreen.js` (PowerShell-lusje met
+  `SHQueryUserNotificationState`, status 2/3/4; niet 7, want dat is elke Store-app zoals Claude;
+  stopt als de app-PID weg is). macOS: `setVisibleOnAllWorkspaces(..., { visibleOnFullScreen })`.
+  Alleen terugzetten wat we zelf verborgen (`hiddenForFullscreen`).
 - `lib/trayicon.js`: stand buiten de widget (`config.trayStatus`: both/fiveHour/sevenDay/off).
   macOS: `tray.setTitle` in de menubalk; Windows/Linux: ringicoon als PNG (eigen encoder, geen
   pakketten) op 16–32 px. Staat het aan, dan wordt ook verborgen elke 5 min opgehaald.

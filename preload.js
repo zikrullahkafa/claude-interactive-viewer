@@ -38,4 +38,6 @@ contextBridge.exposeInMainWorld('widget', {
   setShortcut: (keyInfo) => ipcRenderer.invoke('set-shortcut', keyInfo),
   pauseShortcut: (paused) => ipcRenderer.send('pause-shortcut', paused),
   exportReport: (kind) => ipcRenderer.invoke('export', kind),
+  copyText: (text) => ipcRenderer.invoke('copy-text', text),
+  openLink: (url) => ipcRenderer.send('open-link', url),
 });
